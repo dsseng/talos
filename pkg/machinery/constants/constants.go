@@ -696,6 +696,9 @@ const (
 	// CgroupSystemRuntimeMillicores is the CPU weight for the system containerd process.
 	CgroupSystemRuntimeMillicores = 500
 
+	// SelinuxLabelSystemRuntime is the SELinux label for containerd runtime processes.
+	SelinuxLabelSystemRuntime = "system_u:system_r:sys_containerd_t"
+
 	// CgroupApid is the cgroup name for apid runtime processes.
 	CgroupApid = CgroupSystem + "/apid"
 
@@ -752,6 +755,9 @@ const (
 
 	// CgroupPodRuntimeMillicores is the CPU weight for the pod runtime cgroup.
 	CgroupPodRuntimeMillicores = 1000
+
+	// SelinuxLabelPodRuntime is the SELinux label for kubernetes containerd runtime processes.
+	SelinuxLabelPodRuntime = "client_u:client_r:pod_containerd_t"
 
 	// CgroupPodRuntimeReservedMemory is the hard memory protection for the cri runtime processes.
 	CgroupPodRuntimeReservedMemory = 196 * 1024 * 1024
