@@ -771,6 +771,9 @@ const (
 	// CgroupEtcdMillicores is the CPU weight for the etcd process.
 	CgroupEtcdMillicores = 2000
 
+	// SELinuxLabelEtcd is the SELinux label for etcd process.
+	SELinuxLabelEtcd = "system_u:system_r:etcd_t"
+
 	// CgroupKubelet is the cgroup name for kubelet process.
 	CgroupKubelet = CgroupPodRuntimeRoot + "/kubelet"
 
