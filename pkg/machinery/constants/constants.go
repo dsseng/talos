@@ -738,11 +738,17 @@ const (
 	// CgroupUdevdMillicores is the CPU weight for the udevd process.
 	CgroupUdevdMillicores = 250
 
+	// SelinuxLabelUdevd is the SELinux label for udevd runtime processes.
+	SelinuxLabelUdevd = "system_u:system_r:udev_t"
+
 	// CgroupExtensions is the cgroup name for system extension processes.
 	CgroupExtensions = CgroupSystem + "/extensions"
 
 	// CgroupDashboard is the cgroup name for dashboard process.
 	CgroupDashboard = CgroupSystem + "/dashboard"
+
+	// SelinuxLabelDashboard is the SELinux label for dashboard process.
+	SelinuxLabelDashboard = "system_u:system_r:dashboard_t"
 
 	// CgroupPodRuntimeRoot is the cgroup containing Kubernetes runtime components.
 	CgroupPodRuntimeRoot = "/podruntime"
