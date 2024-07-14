@@ -120,11 +120,17 @@
     setsockcreate
     getrlimit
 ))
+(class system (
+    ipc_info
+    module_load
+    module_request
+    syslog_console
+    syslog_mod
+    syslog_read
+))
 (class process2 (nnp_transition nosuid_transition))
-(class system (ipc_info syslog_read syslog_mod syslog_console module_request module_load halt reboot status start stop enable disable reload))
 (class fd (use))
 (class node (recvfrom sendto))
-(class context (unused_perm contains))
 
 (class bpf (map_create map_read map_write prog_load prog_run))
 
@@ -382,7 +388,6 @@
     appletalk_socket
     packet
     key
-    context
     dccp_socket
     memprotect
     peer
