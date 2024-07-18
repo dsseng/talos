@@ -19,11 +19,12 @@ import (
 
 // Point represents a mount point.
 type Point struct {
-	source string
-	target string
-	fstype string
-	flags  uintptr
-	data   string
+	source       string
+	target       string
+	fstype       string
+	flags        uintptr
+	data         string
+	selinuxLabel string
 }
 
 // NewPointOption is a mount point option.
@@ -54,6 +55,13 @@ func WithFlags(flags uintptr) NewPointOption {
 // WithReadonly sets the read-only flag.
 func WithReadonly() NewPointOption {
 	return WithFlags(unix.MS_RDONLY)
+}
+
+// WithSelinuxLabel sets the mount SELinux label.
+func WithSelinuxLabel(label string) NewPointOption {
+	return func(p *Point) {
+		p.selinuxLabel = label
+	}
 }
 
 // NewPoint creates a new mount point.
@@ -214,7 +222,14 @@ func (p *Point) Unmount(opts ...UnmountOption) error {
 }
 
 func (p *Point) mount() error {
-	return unix.Mount(p.source, p.target, p.fstype, p.flags, p.data)
+	if err := unix.Mount(p.source, p.target, p.fstype, p.flags, p.data); err != nil {
+		return err
+	}
+
+	if p.selinuxLabel != "" {
+		fmt.Printf("relabeling mount %s to %s\n", p.target, p.selinuxLabel)
+		return unix.Setxattr(p.target, "security.selinux", []byte(p.selinuxLabel), 0)
+	}
 }
 
 func (p *Point) unmount(printer func(string, ...any)) error {
