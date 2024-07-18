@@ -1002,6 +1002,7 @@ func MountUserDisks(runtime.Sequence, any) (runtime.TaskExecutionFunc, string) {
 				volumeStatus.TypedSpec().MountLocation,
 				volumeConfig.TypedSpec().Mount.TargetPath,
 				volumeStatus.TypedSpec().Filesystem.String(),
+				mountv2.WithSelinuxLabel(volumeConfig.TypedSpec().Mount.SelinuxLabel),
 			))
 		}
 
