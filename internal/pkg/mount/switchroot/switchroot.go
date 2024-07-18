@@ -29,6 +29,8 @@ var preservedPaths = map[string]struct{}{
 
 // Switch moves the rootfs to a specified directory. See
 // https://github.com/karelzak/util-linux/blob/master/sys-utils/switch_root.c.
+//
+//nolint:gocyclo
 func Switch(prefix string, mountpoints *mount.Points) (err error) {
 	log.Println("moving mounts to the new rootfs")
 
@@ -85,6 +87,15 @@ func Switch(prefix string, mountpoints *mount.Points) (err error) {
 	// TODO: read selinux config from cmdline
 	err = os.WriteFile("/selinux/load", binpol, 0o777)
 	if err != nil {
+		return err
+	}
+
+	// TODO: move to special relabeling task?
+	if err = unix.Setxattr("/system", "security.selinux", []byte("system_u:object_r:system_t:s0"), 0); err != nil {
+		return err
+	}
+
+	if err = unix.Setxattr("/run", "security.selinux", []byte("system_u:object_r:run_t:s0"), 0); err != nil {
 		return err
 	}
 
