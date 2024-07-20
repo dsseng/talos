@@ -28,6 +28,10 @@
     (typeattributeset device_files ARG1)
 )
 
+(allow udev_t device_files (blk_file (relabelto)))
+(allow udev_t device_files (chr_file (relabelto)))
+(allow device_files device_t (filesystem (associate)))
+
 (typeattribute any_files)
 (typeattributeset any_files common_files)
 (typeattributeset any_files protected_files)
