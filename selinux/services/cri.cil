@@ -15,6 +15,7 @@
 (typetransition pod_containerd_t tmpfs_t file pod_containerd_tmpfs_t)
 
 ; runc_cloned
+; TODO: maybe transition to the container domain here?
 (allow pod_containerd_t pod_containerd_tmpfs_t (file (execute_no_trans)))
 
 (allow pod_containerd_t self (capability2 (perfmon bpf)))

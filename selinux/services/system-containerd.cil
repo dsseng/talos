@@ -21,6 +21,7 @@
 (typetransition sys_containerd_t tmpfs_t file sys_containerd_tmpfs_t)
 
 ; runc_cloned
+; TODO: maybe transition to the container domain here?
 (allow sys_containerd_t sys_containerd_tmpfs_t (file (execute_no_trans)))
 
 (allow sys_containerd_t self (capability2 (perfmon bpf)))
