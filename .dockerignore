@@ -1,7 +1,6 @@
 **
 !api
-!policy.33
-!file_contexts
+!selinux
 !cmd
 !docs
 !hack
