@@ -769,35 +769,23 @@ FROM rootfs-base-${TARGETARCH} AS rootfs-base
 RUN find /rootfs -print0 \
     | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
 
-FROM rootfs-base-arm64 AS rootfs-reproducibility-arm64
+FROM rootfs-base-arm64 AS rootfs-squashfs-arm64
 ARG ZSTD_COMPRESSION_LEVEL
 RUN find /rootfs -print0 \
     | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-# FIXME: install fakeroot via tools
-FROM fedora AS fedora-squashfs-arm64
-RUN dnf install -y fakeroot policycoreutils squashfs-tools
-
-FROM fedora-squashfs-arm64 AS rootfs-squashfs-arm64
-ARG ZSTD_COMPRESSION_LEVEL
 COPY ./file_contexts /file_contexts
 COPY ./hack/labeled-squashfs.sh /
-COPY --from=rootfs-reproducibility-arm64 /rootfs /rootfs
-RUN fakeroot /labeled-squashfs.sh /rootfs /rootfs.sqsh ${ZSTD_COMPRESSION_LEVEL}
+ENV SHELL=/toolchain/bin/bash
+RUN fakeroot /labeled-squashfs.sh /rootfs /rootfs.sqsh /file_contexts ${ZSTD_COMPRESSION_LEVEL}
 
-FROM rootfs-base-amd64 AS rootfs-reproducibility-amd64
+FROM rootfs-base-amd64 AS rootfs-squashfs-amd64
 ARG ZSTD_COMPRESSION_LEVEL
 RUN find /rootfs -print0 \
     | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-# FIXME: install fakeroot via tools
-FROM fedora AS fedora-squashfs-amd64
-RUN dnf install -y fakeroot policycoreutils squashfs-tools
-
-FROM fedora-squashfs-amd64 AS rootfs-squashfs-amd64
-ARG ZSTD_COMPRESSION_LEVEL
 COPY ./file_contexts /file_contexts
 COPY ./hack/labeled-squashfs.sh /
-COPY --from=rootfs-reproducibility-amd64 /rootfs /rootfs
-RUN fakeroot /labeled-squashfs.sh /rootfs /rootfs.sqsh ${ZSTD_COMPRESSION_LEVEL}
+ENV SHELL=/toolchain/bin/bash
+RUN fakeroot /labeled-squashfs.sh /rootfs /rootfs.sqsh /file_contexts ${ZSTD_COMPRESSION_LEVEL}
 
 FROM scratch AS squashfs-arm64
 COPY --from=rootfs-squashfs-arm64 /rootfs.sqsh /

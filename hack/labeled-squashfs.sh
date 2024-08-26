@@ -1,5 +1,5 @@
-#!/bin/bash
+#!/toolchain/bin/bash
 
 set -e
-setfiles -r $1 -F -vv /file_contexts $1
-mksquashfs $1 $2 -all-root -noappend -comp zstd -Xcompression-level $3 -no-progress
+/toolchain/sbin/setfiles -r $1 -F -vv $3 $1
+mksquashfs $1 $2 -all-root -noappend -comp zstd -Xcompression-level $4 -no-progress
