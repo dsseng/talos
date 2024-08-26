@@ -1,5 +1,3 @@
-; FIXME: integrate into build system: secilc -c 33 selinux/**/*.cil
-
 (sensitivity s0)
 (sensitivityorder (s0))
 (level systemLow (s0))
