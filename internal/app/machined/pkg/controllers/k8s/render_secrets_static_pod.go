@@ -20,8 +20,8 @@ import (
 	"github.com/siderolabs/gen/optional"
 	"github.com/siderolabs/gen/xslices"
 	"go.uber.org/zap"
-	"golang.org/x/sys/unix"
 
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 	"github.com/siderolabs/talos/pkg/machinery/resources/k8s"
 	"github.com/siderolabs/talos/pkg/machinery/resources/secrets"
@@ -279,8 +279,8 @@ func (ctrl *RenderSecretsStaticPodController) Run(ctx context.Context, r control
 				return fmt.Errorf("error creating secrets directory for %q: %w", pod.name, err)
 			}
 
-			if err = unix.Lsetxattr(pod.directory, "security.selinux", []byte(pod.selinuxLabel), 0); err != nil {
-				return fmt.Errorf("error labeling k8s secrets: %w", err)
+			if err = selinux.SetLabel(pod.directory, pod.selinuxLabel); err != nil {
+				return err
 			}
 
 			for _, secret := range pod.secrets {

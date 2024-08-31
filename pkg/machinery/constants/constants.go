@@ -92,6 +92,9 @@ const (
 	// KernelParamHaltIfInstalled is the kernel parameter name to control if Talos should pause if booting from boot media while Talos is already installed.
 	KernelParamHaltIfInstalled = "talos.halt_if_installed"
 
+	// KernelParamSELinux is the kernel parameter name to enable and control SELinux security mode.
+	KernelParamSELinux = "talos.selinux"
+
 	// BoardNone indicates that the install is not for a specific board.
 	BoardNone = "none"
 

@@ -64,6 +64,7 @@ import (
 	"github.com/siderolabs/talos/internal/pkg/partition"
 	"github.com/siderolabs/talos/internal/pkg/secureboot"
 	"github.com/siderolabs/talos/internal/pkg/secureboot/tpm2"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/internal/pkg/zboot"
 	"github.com/siderolabs/talos/pkg/conditions"
 	"github.com/siderolabs/talos/pkg/images"
@@ -151,11 +152,7 @@ func SetupSystemDirectory(runtime.Sequence, any) (runtime.TaskExecutionFunc, str
 				label = ""
 			}
 
-			if label != "" {
-				err = unix.Setxattr(p, "security.selinux", []byte(label), 0)
-			}
-
-			if err != nil {
+			if err = selinux.SetLabel(p, label); err != nil {
 				return err
 			}
 		}

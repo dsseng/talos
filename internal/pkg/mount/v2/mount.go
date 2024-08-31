@@ -15,6 +15,8 @@ import (
 
 	"github.com/siderolabs/go-retry/retry"
 	"golang.org/x/sys/unix"
+
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 )
 
 // Point represents a mount point.
@@ -228,8 +230,11 @@ func (p *Point) mount() error {
 
 	if p.selinuxLabel != "" {
 		fmt.Printf("relabeling mount %s to %s\n", p.target, p.selinuxLabel)
-		return unix.Setxattr(p.target, "security.selinux", []byte(p.selinuxLabel), 0)
+
+		return selinux.SetLabel(p.target, p.selinuxLabel)
 	}
+
+	return nil
 }
 
 func (p *Point) unmount(printer func(string, ...any)) error {

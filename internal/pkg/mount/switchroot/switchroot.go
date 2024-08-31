@@ -13,11 +13,13 @@ import (
 	"runtime"
 
 	"github.com/siderolabs/go-debug"
+	"github.com/siderolabs/go-procfs/procfs"
 	"golang.org/x/sys/unix"
 
 	"github.com/siderolabs/talos/internal/pkg/mount"
 	"github.com/siderolabs/talos/internal/pkg/secureboot"
 	"github.com/siderolabs/talos/internal/pkg/secureboot/tpm2"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 )
 
@@ -92,19 +94,22 @@ func Switch(prefix string, mountpoints *mount.Points) (err error) {
 	}
 
 	// TODO: move to special relabeling task?
-	if err = unix.Setxattr("/system", "security.selinux", []byte("system_u:object_r:system_t:s0"), 0); err != nil {
+	if err = selinux.SetLabel("/system", "system_u:object_r:system_t:s0"); err != nil {
 		return err
 	}
 
-	if err = unix.Setxattr("/run", "security.selinux", []byte("system_u:object_r:run_t:s0"), 0); err != nil {
+	if err = selinux.SetLabel("/run", "system_u:object_r:run_t:s0"); err != nil {
 		return err
 	}
 
 	runtime.LockOSThread()
+
 	// TODO: enforce (https://github.com/SELinuxProject/selinux/blob/e81a05a5050354261049cc7b5987372e763fc5f4/libselinux/src/setenforce.c#L12)
-	err = os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:init_t:s0"), 0o777)
-	if err != nil {
-		return err
+	if procfs.ProcCmdline().Get(constants.KernelParamSELinux).First() != nil {
+		err = os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:init_t:s0"), 0o777)
+		if err != nil {
+			return err
+		}
 	}
 
 	// extend PCR 11 with leave-initrd

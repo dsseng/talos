@@ -184,6 +184,7 @@ func RunInstallerContainer(disk, platform, ref string, cfg configcore.Config, cf
 		constants.KernelParamEquinixMetalEvents,
 		constants.KernelParamDashboardDisabled,
 		constants.KernelParamNetIfnames,
+		constants.KernelParamSELinux,
 	} {
 		if c := procfs.ProcCmdline().Get(preservedArg).First(); c != nil {
 			args = append(args, "--extra-kernel-arg", fmt.Sprintf("%s=%s", preservedArg, *c))

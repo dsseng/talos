@@ -17,10 +17,12 @@ import (
 	"github.com/containerd/cgroups/v3/cgroup2"
 	"github.com/containerd/containerd/v2/pkg/sys"
 	"github.com/siderolabs/gen/xslices"
+	"github.com/siderolabs/go-procfs/procfs"
 	"golang.org/x/sys/unix"
 	"kernel.org/pub/linux/libs/security/libcap/cap"
 
 	krnl "github.com/siderolabs/talos/pkg/kernel"
+	"github.com/siderolabs/talos/pkg/machinery/constants"
 	"github.com/siderolabs/talos/pkg/machinery/kernel"
 )
 
@@ -51,15 +53,17 @@ func Main() {
 
 	// Use /proc/thread-self (Linux 3.17+) to avoid races between current
 	// process threads leading to loss of the domain transition
-	if selinuxLabel != "" {
-		err := os.WriteFile("/proc/thread-self/attr/exec", []byte(selinuxLabel), 0o777)
-		if err != nil {
-			log.Fatalf("%s", err)
-		}
-	} else {
-		err := os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:unconfined_service_t:s0"), 0o777)
-		if err != nil {
-			log.Fatalf("%s", err)
+	if val := procfs.ProcCmdline().Get(constants.KernelParamSELinux).First(); val != nil {
+		if selinuxLabel != "" {
+			err := os.WriteFile("/proc/thread-self/attr/exec", []byte(selinuxLabel), 0o777)
+			if err != nil {
+				log.Fatalf("%s", err)
+			}
+		} else {
+			err := os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:unconfined_service_t:s0"), 0o777)
+			if err != nil {
+				log.Fatalf("%s", err)
+			}
 		}
 	}
 

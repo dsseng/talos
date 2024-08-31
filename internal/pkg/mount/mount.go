@@ -20,6 +20,7 @@ import (
 	"github.com/siderolabs/go-retry/retry"
 	"golang.org/x/sys/unix"
 
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 	"github.com/siderolabs/talos/pkg/makefs"
 )
@@ -448,7 +449,7 @@ func mount(p *Point) (err error) {
 
 	if p.Options.SelinuxLabel != "" {
 		fmt.Printf("relabeling %s to %s\n", p.target, p.Options.SelinuxLabel)
-		err = unix.Setxattr(p.target, "security.selinux", []byte(p.Options.SelinuxLabel), 0)
+		err = selinux.SetLabel(p.target, p.Options.SelinuxLabel)
 	}
 
 	return
@@ -466,7 +467,7 @@ func share(p *Point) (err error) {
 
 	if p.Options.SelinuxLabel != "" {
 		fmt.Printf("relabeling share %s to %s\n", p.target, p.Options.SelinuxLabel)
-		err = unix.Setxattr(p.target, "security.selinux", []byte(p.Options.SelinuxLabel), 0)
+		err = selinux.SetLabel(p.target, p.Options.SelinuxLabel)
 	}
 
 	return
@@ -504,7 +505,7 @@ func overlay(p *Point) error {
 	if p.Options.SelinuxLabel != "" {
 		fmt.Printf("relabeling overlay %s to %s\n", p.target, p.Options.SelinuxLabel)
 
-		if err := unix.Setxattr(p.target, "security.selinux", []byte(p.Options.SelinuxLabel), 0); err != nil {
+		if err := selinux.SetLabel(p.target, p.Options.SelinuxLabel); err != nil {
 			return err
 		}
 	}
@@ -521,7 +522,7 @@ func readonlyOverlay(p *Point) error {
 	if p.Options.SelinuxLabel != "" {
 		fmt.Printf("relabeling ro overlay %s to %s\n", p.target, p.Options.SelinuxLabel)
 
-		if err := unix.Setxattr(p.target, "security.selinux", []byte(p.Options.SelinuxLabel), 0); err != nil {
+		if err := selinux.SetLabel(p.target, p.Options.SelinuxLabel); err != nil {
 			return err
 		}
 	}

@@ -24,7 +24,6 @@ import (
 	debug "github.com/siderolabs/go-debug"
 	"github.com/siderolabs/grpc-proxy/proxy"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -32,6 +31,7 @@ import (
 	apidbackend "github.com/siderolabs/talos/internal/app/apid/pkg/backend"
 	"github.com/siderolabs/talos/internal/app/apid/pkg/director"
 	"github.com/siderolabs/talos/internal/app/apid/pkg/provider"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/grpc/factory"
 	"github.com/siderolabs/talos/pkg/grpc/middleware/authz"
 	"github.com/siderolabs/talos/pkg/grpc/proxy/backend"
@@ -158,7 +158,7 @@ func apidMain() error {
 		return fmt.Errorf("error creating listner: %w", err)
 	}
 
-	if err := unix.Setxattr(constants.APISocketPath, "security.selinux", []byte("system_u:object_r:apid_socket_t:s0"), 0); err != nil {
+	if err = selinux.SetLabel(constants.APISocketPath, "system_u:object_r:apid_socket_t:s0"); err != nil {
 		return err
 	}
 
