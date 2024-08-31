@@ -31,7 +31,7 @@ var DefaultArgs = []string{
 	"ima_template=ima-ng",
 	"ima_appraise=fix",
 	"ima_hash=sha512",
-	"enforcing=0",
+	"talos.selinux=permissive",
 	// FIXME: temporarily enabled audit to debug SE denials
 	"audit=1",
 	"sysctl.kernel.printk_delay=0",

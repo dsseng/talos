@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
 
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/machinery/resources/files"
 )
 
@@ -197,11 +198,9 @@ func createBindMount(src, dst string, mode os.FileMode) (err error) {
 func UpdateFile(filename string, contents []byte, mode os.FileMode, selinuxLabel string) error {
 	oldContents, err := os.ReadFile(filename)
 	if err == nil && bytes.Equal(oldContents, contents) {
-		if selinuxLabel != "" {
-			err := unix.Lsetxattr(filename, "security.selinux", []byte(selinuxLabel), 0)
-			if err != nil {
-				return err
-			}
+		err = selinux.SetLabel(filename, selinuxLabel)
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -212,8 +211,9 @@ func UpdateFile(filename string, contents []byte, mode os.FileMode, selinuxLabel
 		return err
 	}
 
-	if selinuxLabel != "" {
-		return unix.Lsetxattr(filename, "security.selinux", []byte(selinuxLabel), 0)
+	err = selinux.SetLabel(filename, selinuxLabel)
+	if err != nil {
+		return err
 	}
 
 	return nil

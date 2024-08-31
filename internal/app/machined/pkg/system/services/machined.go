@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/siderolabs/go-debug"
-	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 
 	v1alpha1server "github.com/siderolabs/talos/internal/app/machined/internal/server/v1alpha1"
@@ -24,6 +23,7 @@ import (
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/health"
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/runner"
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/runner/goroutine"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/conditions"
 	"github.com/siderolabs/talos/pkg/grpc/factory"
 	"github.com/siderolabs/talos/pkg/grpc/middleware/authz"
@@ -161,7 +161,7 @@ func (s *machinedService) Main(ctx context.Context, r runtime.Runtime, logWriter
 		return err
 	}
 
-	if err := unix.Setxattr(constants.MachineSocketPath, "security.selinux", []byte("system_u:object_r:machine_socket_t:s0"), 0); err != nil {
+	if err := selinux.SetLabel(constants.MachineSocketPath, "system_u:object_r:machine_socket_t:s0"); err != nil {
 		return err
 	}
 

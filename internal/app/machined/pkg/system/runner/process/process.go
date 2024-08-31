@@ -31,6 +31,7 @@ import (
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/events"
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/runner"
 	"github.com/siderolabs/talos/internal/pkg/cgroup"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 )
 
@@ -163,15 +164,17 @@ func beforeExecCallback(pa *syscall.ProcAttr, data any) error {
 
 	// Use /proc/thread-self (Linux 3.17+) to avoid races between current
 	// process threads leading to loss of the domain transition
-	if wrapper.selinuxLabel != "" {
-		err := os.WriteFile("/proc/thread-self/attr/exec", []byte(wrapper.selinuxLabel), 0o777)
-		if err != nil {
-			log.Fatalf("%s", err)
-		}
-	} else {
-		err := os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:unconfined_service_t"), 0o777)
-		if err != nil {
-			log.Fatalf("%s", err)
+	if selinux.IsEnabled() {
+		if wrapper.selinuxLabel != "" {
+			err := os.WriteFile("/proc/thread-self/attr/exec", []byte(wrapper.selinuxLabel), 0o777)
+			if err != nil {
+				log.Fatalf("%s", err)
+			}
+		} else {
+			err := os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:unconfined_service_t"), 0o777)
+			if err != nil {
+				log.Fatalf("%s", err)
+			}
 		}
 	}
 
