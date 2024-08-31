@@ -12,6 +12,17 @@
 (allow kernel_t init_t (process (transition)))
 (allow init_t init_exec_t (file (entrypoint execute_no_trans)))
 
+; System daemon sockets
+(type machine_socket_t)
+(call system_socket (machine_socket_t))
+(allow init_t machine_socket_t (sock_file (relabelto)))
+(type dbus_service_socket_t)
+(call system_socket (dbus_service_socket_t))
+(allow init_t dbus_service_socket_t (sock_file (relabelto)))
+(type dbus_client_socket_t)
+(call system_socket (dbus_client_socket_t))
+(allow init_t dbus_client_socket_t (sock_file (relabelto)))
+
 (allow init_t kernel_t (fd (use)))
 (allow init_t kernel_t (system (
     ipc_info
