@@ -106,10 +106,5 @@
 (call common_file (hosts_conf_t))
 (allow hosts_conf_t tmpfs_t (filesystem (associate)))
 
-; System daemon sockets
-(type machine_socket_t)
-(call system_socket (machine_socket_t))
-(type dbus_service_socket_t)
-(call system_socket (dbus_service_socket_t))
-(type dbus_client_socket_t)
-(call system_socket (dbus_client_socket_t))
+; TODO: modules as a separate class
+(allow any_processes lib_t (fs_classes (ro)))
