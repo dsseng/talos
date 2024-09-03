@@ -229,6 +229,8 @@ function create_cluster {
 }
 
 function destroy_cluster() {
+  mkdir ~/logs
+  cp ~/.talos/clusters/**/*.log ~/logs
   "${TALOSCTL}" cluster destroy --name "${CLUSTER_NAME}" --provisioner "${PROVISIONER}"
 }
 

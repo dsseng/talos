@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2024-10-16T13:22:04Z by kres 34e72ac.
+# Generated on 2024-10-26T18:34:31Z by kres 6d3cad4.
 
 name: integration-qemu-cron
 concurrency:
@@ -94,6 +94,6 @@ jobs:
         with:
           name: talos-logs-integration-qemu
           path: |-
-            ~/.talos/clusters/**/*.log
+            ~/logs/*.log
             !~/.talos/clusters/**/swtpm.log
           retention-days: "5"
