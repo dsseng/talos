@@ -36,6 +36,7 @@
 (call system_file (unlabeled_t))
 (type fs_t)
 (call filesystem (fs_t))
+(allow unlabeled_t fs_t (filesystem (associate)))
 
 (type node_t)
 (roletype object_r node_t)
