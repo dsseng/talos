@@ -620,7 +620,7 @@ COPY --from=depmod-arm64 /build/lib/modules /lib/modules
 
 FROM tools as selinux
 COPY ./selinux /selinux
-RUN secilc -c 33 /selinux/**/*.cil -vvvvv
+RUN secilc -c 33 /selinux/**/*.cil -vvvvv -O
 RUN mkdir -p /rootfs/selinux
 RUN mkdir -p /rootfs/etc/selinux/talos
 RUN cp /policy.33 /rootfs/etc/selinux/talos/
