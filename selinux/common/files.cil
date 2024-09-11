@@ -108,3 +108,6 @@
 
 ; TODO: modules as a separate class
 (allow any_processes lib_t (fs_classes (ro)))
+
+; Random programs might want to do this on all FS's
+(allow any_processes fs_t (filesystem (getattr)))
