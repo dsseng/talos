@@ -192,3 +192,9 @@
 
 ; FIXME: add context for kube services
 (allow pod_processes kube_secret_files (fs_classes (rw)))
+
+; CNI and other plugins
+(type cri_plugin_bin_t)
+(call system_file (cri_plugin_bin_t))
+(filecon "/opt/cni/bin(/.*)?" any (system_u object_r cri_plugin_bin_t (systemLow systemLow)))
+(allow pod_containerd_t cri_plugin_bin_t (file (execute_no_trans)))
