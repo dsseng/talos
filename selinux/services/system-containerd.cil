@@ -75,5 +75,13 @@
 
 (allow system_container_processes sys_containerd_t (fd (use)))
 
-; Installer. TODO: more detailed
-(allow sys_containerd_t system_var_t (file (execute_no_trans)))
+; Talos installer
+(type installer_t)
+(call system_container_process (installer_t))
+(allow installer_t system_var_t (file (entrypoint)))
+(allow installer_t init_t (unix_stream_socket (connectto)))
+(allow installer_t any_files_and_processes (fs_classes (full)))
+(allow installer_t fs_t (filesystem (unmount mount)))
+(allow installer_t self (capability (dac_override dac_read_search)))
+; TODO: constrain more
+(allow installer_t any_files_and_processes (fs_classes (full)))

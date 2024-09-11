@@ -205,7 +205,7 @@ func RunInstallerContainer(disk, platform, ref string, cfg configcore.Config, cf
 		oci.WithReadonlyPaths(nil),
 		oci.WithWriteableSysfs,
 		oci.WithWriteableCgroupfs,
-		oci.WithSelinuxLabel(""),
+		oci.WithSelinuxLabel("system_u:system_r:installer_t:s0"), // TODO: specify
 		oci.WithApparmorProfile(""),
 		oci.WithSeccompUnconfined,
 		oci.WithAllDevicesAllowed,
