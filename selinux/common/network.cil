@@ -94,5 +94,5 @@
 (allow any_processes unlabeled_t (association (sendto recvfrom setcontext polmatch)))
 
 ; InfiniBand
-(allow kernel_t unlabeled_t (infiniband_pkey (access)))
-(allow kernel_t unlabeled_t (infiniband_endport (manage_subnet)))
+(allow any_processes unlabeled_t (infiniband_pkey (access)))
+(allow any_processes unlabeled_t (infiniband_endport (manage_subnet)))
