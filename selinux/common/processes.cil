@@ -73,6 +73,8 @@
     transition
 )))
 
+(allow system_processes any_processes (unix_stream_socket (connectto)))
+
 (allow any_processes self (fd (use)))
 ; Cilium and other tools use BPF
 (allow any_processes self (bpf (map_create map_read map_write prog_load prog_run)))
