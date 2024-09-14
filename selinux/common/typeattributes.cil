@@ -102,6 +102,34 @@
 
 (allow any_processes unconfined_files (fs_classes (rw)))
 (allow any_processes self (fs_classes (rw)))
+(allow any_processes self (anon_inode (
+    append
+    audit_access
+    create
+    execmod
+    execute
+    getattr
+    ioctl
+    link
+    lock
+    map
+    mounton
+    open
+    quotaon
+    read
+    relabelfrom
+    relabelto
+    rename
+    setattr
+    unlink
+    watch
+    watch_mount
+    watch_reads
+    watch_sb
+    watch_with_perm
+    write
+)))
+(allow any_processes self (io_uring (override_creds sqpoll cmd)))
 (allow pod_t pod_t (fs_classes (rw)))
 
 (typeattribute system_processes)

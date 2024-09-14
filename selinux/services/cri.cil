@@ -36,7 +36,7 @@
 (allow pod_containerd_t self (unix_stream_socket (connectto)))
 (allow init_t pod_containerd_t (unix_stream_socket (connectto)))
 
-(allow pod_containerd_t pod_processes (process2 (nnp_transition)))
+(allow pod_containerd_t pod_processes (process2 (nnp_transition nosuid_transition)))
 (allow pod_containerd_t pod_processes (process (transition)))
 (allow pod_containerd_t self (key (view read write search link setattr create)))
 (allow pod_containerd_t pod_processes (key (view read write search link setattr create)))
