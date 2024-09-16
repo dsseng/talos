@@ -5,8 +5,8 @@
 package switchroot
 
 import (
+	_ "embed"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -29,6 +29,9 @@ var preservedPaths = map[string]struct{}{
 	constants.FirmwarePath:            {},
 	constants.SDStubDynamicInitrdPath: {},
 }
+
+//go:embed policy.33
+var selinuxPolicy []byte
 
 // Switch moves the rootfs to a specified directory. See
 // https://github.com/karelzak/util-linux/blob/master/sys-utils/switch_root.c.
@@ -79,6 +82,7 @@ func Switch(prefix string, mountpoints *mount.Points) (err error) {
 
 	if procfs.ProcCmdline().Get(constants.KernelParamSELinux).First() != nil {
 		selinuxMode := *procfs.ProcCmdline().Get(constants.KernelParamSELinux).First()
+
 		err := initSelinux(selinuxMode)
 		if err != nil {
 			return err
@@ -116,25 +120,15 @@ func Switch(prefix string, mountpoints *mount.Points) (err error) {
 func initSelinux(selinuxMode string) error {
 	if selinuxMode == "disabled" {
 		log.Println("SELinux disabled")
+
 		return nil
 	}
 
 	log.Println("loading SELinux policy")
 
-	// TODO: use embed?
-	f, err := os.Open("/etc/selinux/talos/policy.33")
-	if err != nil {
-		return err
-	}
-	defer f.Close() //nolint:errcheck
+	var err error
 
-	binpol, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile("/selinux/load", binpol, 0o777)
-	if err != nil {
+	if err = os.WriteFile("/selinux/load", selinuxPolicy, 0o777); err != nil {
 		return err
 	}
 
@@ -149,15 +143,14 @@ func initSelinux(selinuxMode string) error {
 		return err
 	}
 
-	err = os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:init_t:s0"), 0o777)
-	if err != nil {
+	if err = os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:init_t:s0"), 0o777); err != nil {
 		return err
 	}
 
 	if selinuxMode == "enforcing" {
 		log.Println("Setting SELinux mode to enforcing")
-		err = os.WriteFile("/selinux/enforce", []byte("1"), 0o777)
-		if err != nil {
+
+		if err = os.WriteFile("/selinux/enforce", []byte("1"), 0o777); err != nil {
 			return err
 		}
 	}
