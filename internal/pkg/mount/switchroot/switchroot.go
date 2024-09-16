@@ -74,39 +74,12 @@ func Switch(prefix string, mountpoints *mount.Points) (err error) {
 		return fmt.Errorf("error deleting initramfs: %w", err)
 	}
 
-	log.Println("loading SELinux policy")
-
-	f, err := os.Open("/etc/selinux/talos/policy.33")
-	if err != nil {
-		return err
-	}
-	defer f.Close() //nolint:errcheck
-
-	binpol, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-
-	// TODO: read selinux config from cmdline
-	err = os.WriteFile("/selinux/load", binpol, 0o777)
-	if err != nil {
-		return err
-	}
-
-	// TODO: move to special relabeling task?
-	if err = selinux.SetLabel("/system", "system_u:object_r:system_t:s0"); err != nil {
-		return err
-	}
-
-	if err = selinux.SetLabel("/run", "system_u:object_r:run_t:s0"); err != nil {
-		return err
-	}
-
+	// In case we do a SELinux transition ensure we run in the same task
 	runtime.LockOSThread()
 
-	// TODO: enforce (https://github.com/SELinuxProject/selinux/blob/e81a05a5050354261049cc7b5987372e763fc5f4/libselinux/src/setenforce.c#L12)
 	if procfs.ProcCmdline().Get(constants.KernelParamSELinux).First() != nil {
-		err = os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:init_t:s0"), 0o777)
+		selinuxMode := *procfs.ProcCmdline().Get(constants.KernelParamSELinux).First()
+		err := initSelinux(selinuxMode)
 		if err != nil {
 			return err
 		}
@@ -136,6 +109,58 @@ func Switch(prefix string, mountpoints *mount.Points) (err error) {
 	}
 
 	runtime.UnlockOSThread()
+
+	return nil
+}
+
+func initSelinux(selinuxMode string) error {
+	if selinuxMode == "disabled" {
+		log.Println("SELinux disabled")
+		return nil
+	}
+
+	log.Println("loading SELinux policy")
+
+	// TODO: use embed?
+	f, err := os.Open("/etc/selinux/talos/policy.33")
+	if err != nil {
+		return err
+	}
+	defer f.Close() //nolint:errcheck
+
+	binpol, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile("/selinux/load", binpol, 0o777)
+	if err != nil {
+		return err
+	}
+
+	log.Println("SELinux policy loaded")
+
+	// TODO: move to special relabeling task?
+	if err = selinux.SetLabel("/system", "system_u:object_r:system_t:s0"); err != nil {
+		return err
+	}
+
+	if err = selinux.SetLabel("/run", "system_u:object_r:run_t:s0"); err != nil {
+		return err
+	}
+
+	err = os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:init_t:s0"), 0o777)
+	if err != nil {
+		return err
+	}
+
+	if selinuxMode == "enforcing" {
+		log.Println("Setting SELinux mode to enforcing")
+		err = os.WriteFile("/selinux/enforce", []byte("1"), 0o777)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
