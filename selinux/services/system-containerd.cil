@@ -14,29 +14,7 @@
 (call system_socket (sys_containerd_socket_t))
 (typetransition sys_containerd_t system_t sock_file sys_containerd_socket_t)
 
-; FIXME: doesn't work
-(type sys_containerd_tmpfs_t)
-(call filesystem (sys_containerd_tmpfs_t))
-(context sys_containerd_tmpfs_t (system_u object_r sys_containerd_tmpfs_t (systemLow systemLow)))
-
-(typetransition system_container_processes tmpfs_t lnk_file sys_containerd_tmpfs_t)
-(typetransition system_container_processes tmpfs_t chr_file sys_containerd_tmpfs_t)
-(typetransition system_container_processes tmpfs_t blk_file sys_containerd_tmpfs_t)
-(typetransition system_container_processes tmpfs_t sock_file sys_containerd_tmpfs_t)
-(typetransition system_container_processes tmpfs_t fifo_file sys_containerd_tmpfs_t)
-(typetransition system_container_processes tmpfs_t dir sys_containerd_tmpfs_t)
-(typetransition system_container_processes tmpfs_t file sys_containerd_tmpfs_t)
-(typetransition sys_containerd_t tmpfs_t lnk_file sys_containerd_tmpfs_t)
-(typetransition sys_containerd_t tmpfs_t chr_file sys_containerd_tmpfs_t)
-(typetransition sys_containerd_t tmpfs_t blk_file sys_containerd_tmpfs_t)
-(typetransition sys_containerd_t tmpfs_t sock_file sys_containerd_tmpfs_t)
-(typetransition sys_containerd_t tmpfs_t fifo_file sys_containerd_tmpfs_t)
-(typetransition sys_containerd_t tmpfs_t dir sys_containerd_tmpfs_t)
-(typetransition sys_containerd_t tmpfs_t file sys_containerd_tmpfs_t)
-
-; runc_cloned
-; TODO: maybe transition to the container domain here?
-(allow sys_containerd_t sys_containerd_tmpfs_t (file (execute_no_trans)))
+; FIXME: runc_cloned memfd execute permission
 
 (allow sys_containerd_t self (user_namespace (create)))
 (allow sys_containerd_t self (capability2 (perfmon bpf)))

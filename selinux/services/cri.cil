@@ -8,28 +8,7 @@
 (call system_socket (pod_containerd_socket_t))
 (typetransition pod_containerd_t run_t sock_file pod_containerd_socket_t)
 
-(type pod_containerd_tmpfs_t)
-(call filesystem (pod_containerd_tmpfs_t))
-(context pod_containerd_tmpfs_t (system_u object_r pod_containerd_tmpfs_t (systemLow systemLow)))
-
-(typetransition pod_processes tmpfs_t lnk_file pod_containerd_tmpfs_t)
-(typetransition pod_processes tmpfs_t chr_file pod_containerd_tmpfs_t)
-(typetransition pod_processes tmpfs_t blk_file pod_containerd_tmpfs_t)
-(typetransition pod_processes tmpfs_t sock_file pod_containerd_tmpfs_t)
-(typetransition pod_processes tmpfs_t fifo_file pod_containerd_tmpfs_t)
-(typetransition pod_processes tmpfs_t dir pod_containerd_tmpfs_t)
-(typetransition pod_processes tmpfs_t file pod_containerd_tmpfs_t)
-(typetransition pod_containerd_t tmpfs_t lnk_file pod_containerd_tmpfs_t)
-(typetransition pod_containerd_t tmpfs_t chr_file pod_containerd_tmpfs_t)
-(typetransition pod_containerd_t tmpfs_t blk_file pod_containerd_tmpfs_t)
-(typetransition pod_containerd_t tmpfs_t sock_file pod_containerd_tmpfs_t)
-(typetransition pod_containerd_t tmpfs_t fifo_file pod_containerd_tmpfs_t)
-(typetransition pod_containerd_t tmpfs_t dir pod_containerd_tmpfs_t)
-(typetransition pod_containerd_t tmpfs_t file pod_containerd_tmpfs_t)
-
-; runc_cloned
-; TODO: maybe transition to the container domain here?
-(allow pod_containerd_t pod_containerd_tmpfs_t (file (execute_no_trans)))
+; FIXME: runc_cloned memfd execute permission
 
 (allow pod_containerd_t self (user_namespace (create)))
 (allow pod_containerd_t self (capability2 (perfmon bpf)))
