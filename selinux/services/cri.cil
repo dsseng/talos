@@ -166,6 +166,8 @@
 (allow pod_processes kernel_t (fd (use)))
 ; kube-controller
 (allow pod_processes cgroup_t (fs_classes (ro)))
+; TODO: add a boolean to disable this for extra hardening
+(allow pod_processes self (process (ptrace)))
 
 (type kube_apiserver_config_t)
 (call protected_file (kube_apiserver_config_t))

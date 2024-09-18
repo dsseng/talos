@@ -12,7 +12,6 @@
     getsched
     getsession
     noatsecure
-    ptrace
     rlimitinh
     setcap
     setcurrent
