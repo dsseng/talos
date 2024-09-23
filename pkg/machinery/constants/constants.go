@@ -708,6 +708,9 @@ const (
 	// CgroupApidMillicores is the CPU weight for the apid process.
 	CgroupApidMillicores = 500
 
+	// SelinuxLabelApid is the SELinux label for apid runtime processes.
+	SelinuxLabelApid = "system_u:system_r:talos_apid_t"
+
 	// CgroupTrustd is the cgroup name for trustd runtime processes.
 	CgroupTrustd = CgroupSystem + "/trustd"
 
@@ -719,6 +722,9 @@ const (
 
 	// CgroupTrustdMillicores is the CPU weight for the trustd process.
 	CgroupTrustdMillicores = 250
+
+	// SelinuxLabelTrustd is the SELinux label for trustd runtime processes.
+	SelinuxLabelTrustd = "system_u:system_r:talos_trustd_t"
 
 	// CgroupUdevd is the cgroup name for udevd runtime processes.
 	CgroupUdevd = CgroupSystem + "/udevd"
@@ -761,6 +767,9 @@ const (
 
 	// CgroupKubelet is the cgroup name for kubelet process.
 	CgroupKubelet = CgroupPodRuntimeRoot + "/kubelet"
+
+	// SelinuxLabelKubelet is the SELinux label for kubelet process.
+	SelinuxLabelKubelet = "system_u:system_r:kubelet_t"
 
 	// CgroupKubeletReservedMemory is the hard memory protection for the kubelet processes.
 	CgroupKubeletReservedMemory = 96 * 1024 * 1024
