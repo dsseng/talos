@@ -17,7 +17,6 @@
 ; FIXME: runc_cloned memfd execute permission
 
 (allow sys_containerd_t self (user_namespace (create)))
-(allow sys_containerd_t self (capability2 (perfmon bpf)))
 (allow sys_containerd_t self (unix_stream_socket (connectto)))
 (allow init_t sys_containerd_t (unix_stream_socket (connectto)))
 
@@ -25,26 +24,6 @@
 (allow sys_containerd_t system_container_p (process (transition)))
 (allow sys_containerd_t self (key (view read write search link setattr create)))
 (allow sys_containerd_t system_container_p (key (view read write search link setattr create)))
-(allow sys_containerd_t self (capability (
-    chown
-    dac_override
-    dac_read_search
-    fowner
-    fsetid
-    kill
-    mknod
-    net_admin
-    net_bind_service
-    net_raw
-    setfcap
-    setgid
-    setpcap
-    setuid
-    sys_admin
-    sys_chroot
-    sys_ptrace
-    sys_resource
-)))
 
 ; Typically a system extension
 ; Possibly a service misconfigured by machined
@@ -63,6 +42,5 @@
 (allow installer_t init_t (unix_stream_socket (connectto)))
 (allow installer_t any_f_any_p (fs_classes (full)))
 (allow installer_t fs_t (filesystem (unmount mount)))
-(allow installer_t self (capability (dac_override dac_read_search)))
 ; TODO: constrain more
 (allow installer_t any_f_any_p (fs_classes (full)))
