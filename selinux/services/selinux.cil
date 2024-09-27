@@ -1,1 +1,1 @@
-(neverallow any_processes security_t (security (setenforce load_policy)))
+(neverallow any_p security_t (security (setenforce load_policy)))

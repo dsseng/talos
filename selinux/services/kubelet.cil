@@ -1,10 +1,10 @@
 (type kubelet_t)
-(call pod_process (kubelet_t))
+(call pod_p (kubelet_t))
 ; FIXME: insecure as anyone with access to the pod containerd may obtain this domain
 (allow kubelet_t ephemeral_t (file (entrypoint execute_no_trans)))
 
 ; procfs access
-(allow kubelet_t any_processes (fs_classes (ro)))
+(allow kubelet_t any_p (fs_classes (ro)))
 
 ; Manage cgroups
 (allow kubelet_t cgroup_t (fs_classes (rw)))
@@ -29,7 +29,7 @@
 (allow kubelet_t self (capability2 (syslog)))
 
 ; Manage filesystem quotas and mounts
-(allow kubelet_t filesystems (filesystem (
+(allow kubelet_t filesystem_f (filesystem (
     associate
     getattr
     mount
@@ -51,7 +51,7 @@
 (allow kubelet_t kernel_t (system (syslog_read)))
 
 ; TODO: constrain
-(allow kubelet_t any_device_files (fs_classes (rw)))
+(allow kubelet_t device_f (fs_classes (rw)))
 (allow kubelet_t sysfs_t (fs_classes (ro)))
 (allow kubelet_t securityfs_t (fs_classes (ro)))
 
