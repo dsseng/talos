@@ -11,7 +11,6 @@
 ; FIXME: runc_cloned memfd execute permission
 
 (allow pod_containerd_t self (user_namespace (create)))
-(allow pod_containerd_t self (capability2 (perfmon bpf)))
 (allow pod_containerd_t self (unix_stream_socket (connectto)))
 (allow init_t pod_containerd_t (unix_stream_socket (connectto)))
 
@@ -19,26 +18,6 @@
 (allow pod_containerd_t pod_p (process (transition)))
 (allow pod_containerd_t self (key (view read write search link setattr create)))
 (allow pod_containerd_t pod_p (key (view read write search link setattr create)))
-(allow pod_containerd_t self (capability (
-    chown
-    dac_override
-    dac_read_search
-    fowner
-    fsetid
-    kill
-    mknod
-    net_admin
-    net_bind_service
-    net_raw
-    setfcap
-    setgid
-    setpcap
-    setuid
-    sys_admin
-    sys_chroot
-    sys_ptrace
-    sys_resource
-)))
 
 (type pod_t)
 (call pod_p (pod_t))
@@ -75,58 +54,6 @@
 (allow pod_p pod_containerd_t (fifo_file (open ioctl read write append)))
 
 (allow pod_p self (unix_stream_socket (connectto)))
-; TODO: restrict?
-; FIXME: classmap
-(allow pod_p self (capability (
-    audit_write
-    chown
-    dac_override
-    dac_read_search
-    fowner
-    fsetid
-    ipc_lock
-    mknod
-    net_admin
-    net_bind_service
-    net_broadcast
-    net_raw
-    setfcap
-    setgid
-    setpcap
-    setuid
-    sys_admin
-    sys_chroot
-    sys_nice
-    sys_ptrace
-    sys_rawio
-    sys_resource
-)))
-(allow pod_p self (cap_userns (
-    audit_write
-    chown
-    dac_override
-    dac_read_search
-    fowner
-    fsetid
-    ipc_lock
-    mknod
-    net_admin
-    net_bind_service
-    net_broadcast
-    net_raw
-    setfcap
-    setgid
-    setpcap
-    setuid
-    sys_admin
-    sys_chroot
-    sys_nice
-    sys_ptrace
-    sys_rawio
-    sys_resource
-)))
-(allow pod_p self (capability2 (audit_read bpf block_suspend perfmon wake_alarm)))
-(allow pod_p self (cap2_userns (audit_read bpf block_suspend perfmon wake_alarm)))
 
 ; kube-proxy demands
 ; TODO: specifically /proc/sys/net
