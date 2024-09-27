@@ -186,8 +186,6 @@
 ; Used by chromium, wine, other. Might be useful to disable to protect from kernel null-deref exploits
 (allow any_p self (memprotect (mmap_zero)))
 ; TODO: kernel_service
-; Android binder IPC, for now unconfined
-(allow any_p self (binder (impersonate call set_context_mgr transfer)))
 ; TODO: anon_inode
 ; TODO: override_creds?
 (allow any_p self (io_uring (sqpoll cmd)))
