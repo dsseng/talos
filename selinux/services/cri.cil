@@ -56,7 +56,6 @@
 (allow pod_p self (unix_stream_socket (connectto)))
 
 ; kube-proxy demands
-; TODO: specifically /proc/sys/net
 (allow pod_p proc_sysctl_t (fs_classes (rw)))
 ; comm="loopback"
 (allow pod_p nsfs_t (fs_classes (ro)))

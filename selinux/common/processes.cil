@@ -41,8 +41,7 @@
 ; BPF, observability
 (allow any_p self (bpf (map_create map_read map_write prog_load prog_run)))
 
-; TODO: check if sys_admin is ok
-; All caps
+; All caps, except sys_boot and sys_modules
 (allow any_p self (capability (
     audit_control
     audit_write
@@ -66,9 +65,7 @@
     setpcap
     setuid
     sys_admin
-    sys_boot
     sys_chroot
-    sys_module
     sys_nice
     sys_pacct
     sys_ptrace
@@ -100,9 +97,7 @@
     setpcap
     setuid
     sys_admin
-    sys_boot
     sys_chroot
-    sys_module
     sys_nice
     sys_pacct
     sys_ptrace
@@ -185,10 +180,8 @@
 (allow any_p self (perf_event (open cpu kernel tracepoint read write)))
 ; Used by chromium, wine, other. Might be useful to disable to protect from kernel null-deref exploits
 (allow any_p self (memprotect (mmap_zero)))
-; TODO: kernel_service
-; TODO: anon_inode
-; TODO: override_creds?
-(allow any_p self (io_uring (sqpoll cmd)))
+; TODO: kernel_service, anon_inode
+(allow any_p self (io_uring (sqpoll cmd override_creds)))
 (allow any_p self (user_namespace (create)))
 
 (allow pod_t pod_t (fs_classes (rw)))
