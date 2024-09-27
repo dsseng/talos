@@ -10,6 +10,8 @@
 (allow any_p node_t (sctp_socket (node_bind)))
 (allow any_p node_t (icmp_socket (node_bind)))
 
+(allow any_p netif_t (netif (egress ingress)))
+
 ; Network sockets, except relabeling
 (allow any_p any_p (socket (accept append bind connect create getattr getopt ioctl listen lock map name_bind read recvfrom sendto setattr setopt shutdown write)))
 (allow any_p any_p (dccp_socket (accept append bind connect create getattr getopt ioctl listen lock map name_bind read recvfrom sendto setattr setopt shutdown write)))
