@@ -148,6 +148,9 @@
 ; TODO: add a boolean to disable this for extra hardening
 (allow pod_processes self (process (ptrace)))
 
+(allow pod_processes pod_containerd_t (netlink_classes (full)))
+(allow pod_containerd_t pod_processes (netlink_classes (full)))
+
 (type kube_apiserver_config_t)
 (call protected_file (kube_apiserver_config_t))
 (allow kube_apiserver_config_t tmpfs_t (filesystem (associate)))
