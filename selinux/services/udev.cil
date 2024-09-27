@@ -26,6 +26,8 @@
 
 ; TODO: other module locations? Special label?
 (allow udev_t lib_t (system (module_load)))
+(allow udev_t self (capability (sys_module)))
+(allow udev_t self (cap_userns (sys_module)))
 
 (type udev_socket_t)
 (call system_socket_f (udev_socket_t))
@@ -73,5 +75,7 @@
 (filecon "/sbin/modprobe" file (system_u object_r modprobe_exec_t (systemLow systemLow)))
 (allow kernel_t modprobe_exec_t (file (execute_no_trans)))
 (allow udev_t modprobe_exec_t (file (execute_no_trans)))
+(allow kernel_t self (capability (sys_module)))
+(allow kernel_t self (cap_userns (sys_module)))
 
 (allow udev_t kernel_t (key (search)))
