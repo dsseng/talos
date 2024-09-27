@@ -1,5 +1,5 @@
 (type null_device_t)
-(call device (null_device_t))
+(call common_device_f (null_device_t))
 (sid devnull)
 (sidcontext devnull (system_u object_r null_device_t (systemLow systemLow)))
 
@@ -33,9 +33,9 @@
 (sidcontext scmp_packet (system_u object_r unlabeled_t (systemLow systemLow)))
 
 (type unlabeled_t)
-(call system_file (unlabeled_t))
+(call system_f (unlabeled_t))
 (type fs_t)
-(call filesystem (fs_t))
+(call filesystem_f (fs_t))
 (allow unlabeled_t fs_t (filesystem (associate)))
 
 (type node_t)
