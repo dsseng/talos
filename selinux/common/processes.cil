@@ -41,6 +41,7 @@
 ; BPF, observability
 (allow any_p self (bpf (map_create map_read map_write prog_load prog_run)))
 
+; TODO: check if sys_admin is ok
 ; All caps
 (allow any_p self (capability (
     audit_control
