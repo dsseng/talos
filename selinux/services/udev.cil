@@ -24,7 +24,7 @@
 (call system_service_p (udev_t))
 (allow udev_t udev_exec_t (file (entrypoint execute_no_trans)))
 
-; TODO: other module locations? Special label?
+; TODO: special label?
 (allow udev_t lib_t (system (module_load)))
 (allow udev_t self (capability (sys_module)))
 (allow udev_t self (cap_userns (sys_module)))
