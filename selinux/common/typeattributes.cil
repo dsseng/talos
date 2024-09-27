@@ -129,8 +129,6 @@
     watch_with_perm
     write
 )))
-(allow any_p self (io_uring (override_creds sqpoll cmd)))
-(allow pod_t pod_t (fs_classes (rw)))
 
 (typeattribute system_p)
 (typeattributeset system_p kernel_t)
@@ -141,9 +139,3 @@
 (typeattribute any_f_any_p)
 (typeattributeset any_f_any_p any_f)
 (typeattributeset any_f_any_p any_p)
-
-; TODO: constrain more
-(allow system_p any_f_any_p (fs_classes (full)))
-; All spawned by init need to use fd of parent
-(allow system_service_p init_t (fd (use)))
-(allow client_p init_t (fd (use)))
