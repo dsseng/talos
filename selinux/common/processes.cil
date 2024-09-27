@@ -166,7 +166,6 @@
 
 (allow any_p self (fd (use)))
 (allow any_p self (key (view read write search link setattr create)))
-; TODO: abstract out with classmapping
 (allow any_p self (sem (associate create destroy getattr read setattr unix_read unix_write write)))
 (allow any_p self (msgq (
     associate create destroy getattr read setattr unix_read unix_write write
@@ -176,9 +175,26 @@
     associate create destroy getattr read setattr unix_read unix_write write
     send receive
 )))
-(allow any_p self (shm (
+; used by X Server
+(allow any_p any_p (shm (
     associate create destroy getattr read setattr unix_read unix_write write
     lock
 )))
-; TODO: restrict?
+; TODO: restrict (boolean)?
 (allow any_p self (perf_event (open cpu kernel tracepoint read write)))
+; Used by chromium, wine, other. Might be useful to disable to protect from kernel null-deref exploits
+(allow any_p self (memprotect (mmap_zero)))
+; TODO: kernel_service
+; Android binder IPC, for now unconfined
+(allow any_p self (binder (impersonate call set_context_mgr transfer)))
+; TODO: anon_inode
+; TODO: override_creds?
+(allow any_p self (io_uring (sqpoll cmd)))
+(allow any_p self (user_namespace (create)))
+
+(allow pod_t pod_t (fs_classes (rw)))
+; TODO: constrain more
+(allow system_p any_f_any_p (fs_classes (full)))
+; All spawned by init need to use fd of parent
+(allow system_service_p init_t (fd (use)))
+(allow client_p init_t (fd (use)))
