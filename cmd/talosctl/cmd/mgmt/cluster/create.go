@@ -108,89 +108,88 @@ const (
 )
 
 var (
-	talosconfig                string
-	nodeImage                  string
-	nodeInstallImage           string
-	registryMirrors            []string
-	registryInsecure           []string
-	kubernetesVersion          string
-	nodeVmlinuzPath            string
-	nodeInitramfsPath          string
-	nodeISOPath                string
-	nodeDiskImagePath          string
-	nodeIPXEBootScript         string
-	applyConfigEnabled         bool
-	bootloaderEnabled          bool
-	uefiEnabled                bool
-	tpm2Enabled                bool
-	extraUEFISearchPaths       []string
-	configDebug                bool
-	networkCIDR                string
-	networkNoMasqueradeCIDRs   []string
-	networkMTU                 int
-	networkIPv4                bool
-	networkIPv6                bool
-	wireguardCIDR              string
-	nameservers                []string
-	dnsDomain                  string
-	workers                    int
-	controlplanes              int
-	controlPlaneCpus           string
-	workersCpus                string
-	controlPlaneMemory         int
-	workersMemory              int
-	clusterDiskSize            int
-	clusterDiskPreallocate     bool
-	clusterDisks               []string
-	extraDisks                 int
-	extraDiskSize              int
-	extraDisksDrivers          []string
-	targetArch                 string
-	clusterWait                bool
-	clusterWaitTimeout         time.Duration
-	forceInitNodeAsEndpoint    bool
-	forceEndpoint              string
-	inputDir                   string
-	cniBinPath                 []string
-	cniConfDir                 string
-	cniCacheDir                string
-	cniBundleURL               string
-	ports                      string
-	dockerHostIP               string
-	withInitNode               bool
-	customCNIUrl               string
-	crashdumpOnFailure         bool
-	skipKubeconfig             bool
-	skipInjectingConfig        bool
-	talosVersion               string
-	encryptStatePartition      bool
-	encryptEphemeralPartition  bool
-	useVIP                     bool
-	enableKubeSpan             bool
-	enableClusterDiscovery     bool
-	configPatch                []string
-	configPatchControlPlane    []string
-	configPatchWorker          []string
-	badRTC                     bool
-	extraBootKernelArgs        string
-	dockerDisableIPv6          bool
-	controlPlanePort           int
-	kubePrismPort              int
-	dhcpSkipHostname           bool
-	skipK8sNodeReadinessCheck  bool
-	networkChaos               bool
-	jitter                     time.Duration
-	latency                    time.Duration
-	packetLoss                 float64
-	packetReorder              float64
-	packetCorrupt              float64
-	bandwidth                  int
-	diskEncryptionKeyTypes     []string
-	withFirewall               string
-	withUUIDHostnames          bool
-	withSiderolinkAgent        agentFlag
-	debugShellEnabled          bool
-	skipBootPhaseFinishedCheck bool
+	talosconfig               string
+	nodeImage                 string
+	nodeInstallImage          string
+	registryMirrors           []string
+	registryInsecure          []string
+	kubernetesVersion         string
+	nodeVmlinuzPath           string
+	nodeInitramfsPath         string
+	nodeISOPath               string
+	nodeDiskImagePath         string
+	nodeIPXEBootScript        string
+	applyConfigEnabled        bool
+	bootloaderEnabled         bool
+	uefiEnabled               bool
+	tpm2Enabled               bool
+	extraUEFISearchPaths      []string
+	configDebug               bool
+	networkCIDR               string
+	networkNoMasqueradeCIDRs  []string
+	networkMTU                int
+	networkIPv4               bool
+	networkIPv6               bool
+	wireguardCIDR             string
+	nameservers               []string
+	dnsDomain                 string
+	workers                   int
+	controlplanes             int
+	controlPlaneCpus          string
+	workersCpus               string
+	controlPlaneMemory        int
+	workersMemory             int
+	clusterDiskSize           int
+	clusterDiskPreallocate    bool
+	clusterDisks              []string
+	extraDisks                int
+	extraDiskSize             int
+	extraDisksDrivers         []string
+	targetArch                string
+	clusterWait               bool
+	clusterWaitTimeout        time.Duration
+	forceInitNodeAsEndpoint   bool
+	forceEndpoint             string
+	inputDir                  string
+	cniBinPath                []string
+	cniConfDir                string
+	cniCacheDir               string
+	cniBundleURL              string
+	ports                     string
+	dockerHostIP              string
+	withInitNode              bool
+	customCNIUrl              string
+	crashdumpOnFailure        bool
+	skipKubeconfig            bool
+	skipInjectingConfig       bool
+	talosVersion              string
+	encryptStatePartition     bool
+	encryptEphemeralPartition bool
+	useVIP                    bool
+	enableKubeSpan            bool
+	enableClusterDiscovery    bool
+	configPatch               []string
+	configPatchControlPlane   []string
+	configPatchWorker         []string
+	badRTC                    bool
+	extraBootKernelArgs       string
+	dockerDisableIPv6         bool
+	controlPlanePort          int
+	kubePrismPort             int
+	dhcpSkipHostname          bool
+	skipK8sNodeReadinessCheck bool
+	networkChaos              bool
+	jitter                    time.Duration
+	latency                   time.Duration
+	packetLoss                float64
+	packetReorder             float64
+	packetCorrupt             float64
+	bandwidth                 int
+	diskEncryptionKeyTypes    []string
+	withFirewall              string
+	withUUIDHostnames         bool
+	withSiderolinkAgent       agentFlag
+	debugShellEnabled         bool
 )
 
 // createCmd represents the cluster up command.
@@ -478,6 +477,12 @@ func create(ctx context.Context) error {
 	}
 
 	var configBundleOpts []bundle.Option
+
+	if debugShellEnabled {
+		if provisionerName != "qemu" {
+			return errors.New("debug shell only supported with qemu provisioner")
+		}
+	}
 
 	if ports != "" {
 		if provisionerName != docker {
@@ -936,6 +941,21 @@ func create(ctx context.Context) error {
 	cluster, err := provisioner.Create(ctx, request, provisionOptions...)
 	if err != nil {
 		return err
+	}
+
+	if debugShellEnabled {
+		fmt.Println("You can now connect to debug shell on any node using these commands:")
+
+		for _, node := range request.Nodes {
+			talosDir, err := clientconfig.GetTalosDirectory()
+			if err != nil {
+				return nil
+			}
+
+			fmt.Printf("socat - UNIX-CONNECT:%s\n", filepath.Join(talosDir, "clusters", clusterName, node.Name+".serial"))
+		}
+
+		return nil
 	}
 
 	// No talosconfig in the bundle - skip the operations below
