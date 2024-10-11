@@ -6,19 +6,28 @@ package process
 
 import (
 	"fmt"
-	"io"
+	"log"
 	"os"
-	"os/exec"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/containerd/cgroups/v3"
+	"github.com/containerd/cgroups/v3/cgroup1"
+	"github.com/containerd/cgroups/v3/cgroup2"
+	"github.com/containerd/containerd/v2/pkg/sys"
+	"github.com/siderolabs/gen/optional"
+	"github.com/siderolabs/gen/xslices"
 	"github.com/siderolabs/go-cmd/pkg/cmd/proc/reaper"
+	"kernel.org/pub/linux/libs/security/libcap/cap"
 
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/events"
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/runner"
 	"github.com/siderolabs/talos/internal/pkg/cgroup"
+	krnl "github.com/siderolabs/talos/pkg/kernel"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/siderolabs/talos/pkg/machinery/kernel"
 )
 
 // processRunner is a runner.Runner that runs a process on the host.
@@ -78,49 +87,100 @@ func (p *processRunner) Close() error {
 }
 
 type commandWrapper struct {
-	cmd              *exec.Cmd
+	launcher         *cap.Launcher
+	ctty             optional.Optional[int]
+	stdin            uintptr
+	stdout           uintptr
+	stderr           uintptr
 	afterStart       func()
 	afterTermination func() error
 }
 
 //nolint:gocyclo
 func (p *processRunner) build() (commandWrapper, error) {
-	args := []string{
-		fmt.Sprintf("-name=%s", p.args.ID),
-		fmt.Sprintf("-dropped-caps=%s", strings.Join(p.opts.DroppedCapabilities, ",")),
-		fmt.Sprintf("-cgroup-path=%s", cgroup.Path(p.opts.CgroupPath)),
-		fmt.Sprintf("-oom-score=%d", p.opts.OOMScoreAdj),
-		fmt.Sprintf("-uid=%d", p.opts.UID),
+	wrapper := commandWrapper{}
+
+	env := slices.Concat([]string{"PATH=" + constants.PATH}, p.opts.Env, os.Environ())
+	launcher := cap.NewLauncher(p.args.ProcessArgs[0], p.args.ProcessArgs[1:], env)
+
+	if p.opts.UID > 0 {
+		launcher.SetUID(int(p.opts.UID))
 	}
 
-	args = append(args, p.args.ProcessArgs...)
+	droppedCaps := strings.Join(p.opts.DroppedCapabilities, ",")
 
-	cmd := exec.Command("/sbin/wrapperd", args...)
+	prop, err := krnl.ReadParam(&kernel.Param{Key: "proc.sys.kernel.kexec_load_disabled"})
+	if v := strings.TrimSpace(string(prop)); err == nil && v != "0" {
+		log.Printf("kernel.kexec_load_disabled is %s, skipping dropping capabilities", v)
+	} else if droppedCaps != "" {
+		caps := strings.Split(droppedCaps, ",")
+		dropCaps := xslices.Map(caps, func(c string) cap.Value {
+			capability, capErr := cap.FromName(c)
+			if capErr != nil {
+				fmt.Printf("failed to parse capability: %s", capErr)
+			}
 
-	// Set the environment for the service.
-	cmd.Env = append([]string{fmt.Sprintf("PATH=%s", constants.PATH)}, p.opts.Env...)
+			return capability
+		})
 
-	// Setup logging.
-	w, err := p.opts.LoggingManager.ServiceLog(p.args.ID).Writer()
-	if err != nil {
-		return commandWrapper{}, fmt.Errorf("service log handler: %w", err)
-	}
-
-	var writer io.Writer
-	if p.debug { // TODO: wrap it into LoggingManager
-		writer = io.MultiWriter(w, os.Stdout)
-	} else {
-		writer = w
-	}
-
-	// close the writer if we exit early due to an error
-	closeWriter := true
-
-	defer func() {
-		if closeWriter {
-			w.Close() //nolint:errcheck
+		// reduce capabilities and assign them to launcher
+		iab := cap.IABGetProc()
+		if err = iab.SetVector(cap.Bound, true, dropCaps...); err != nil {
+			return commandWrapper{}, fmt.Errorf("failed to set capabilities: %s", err)
 		}
-	}()
+
+		launcher.SetIAB(iab)
+	}
+
+	launcher.Callback(func(pa *syscall.ProcAttr, data interface{}) error {
+		wrapper, ok := data.(*commandWrapper)
+		if !ok {
+			return fmt.Errorf("failed to get command info")
+		}
+
+		ctty, cttySet := wrapper.ctty.Get()
+		if cttySet {
+			pa.Sys.Ctty = ctty
+			pa.Sys.Setsid = true
+			pa.Sys.Setctty = true
+		}
+
+		pa.Files = []uintptr{
+			wrapper.stdin,
+			wrapper.stdout,
+			wrapper.stderr,
+		}
+
+		// TODO: use pa.Sys.CgroupFD here when we can be sure clone3 is available
+		fmt.Println("Callback executed")
+
+		return nil
+	})
+
+	// FIXME: restore
+	/// #############?////////////////////////////??????//////////?????????????/#####
+
+	/// Setup logging.
+	/// w, err := p.opts.LoggingManager.ServiceLog(p.args.ID).Writer()
+	/// if err != nil {
+	/// 	return commandWrapper{}, fmt.Errorf("service log handler: %w", err)
+	/// }
+
+	/// var writer io.Writer
+	/// if p.debug { // TODO: wrap it into LoggingManager
+	/// 	writer = io.MultiWriter(w, os.Stdout)
+	/// } else {
+	/// 	writer = w
+	/// }
+
+	/// close the writer if we exit early due to an error
+	/// closeWriter := true
+
+	/// defer func() {
+	/// 	if closeWriter {
+	/// 		w.Close() //nolint:errcheck
+	/// 	}
+	/// }()
 
 	var afterStartFuncs []func()
 
@@ -130,7 +190,7 @@ func (p *processRunner) build() (commandWrapper, error) {
 			return commandWrapper{}, err
 		}
 
-		cmd.Stdin = stdin
+		wrapper.stdin = stdin.Fd()
 
 		afterStartFuncs = append(afterStartFuncs, func() {
 			stdin.Close() //nolint:errcheck
@@ -143,13 +203,14 @@ func (p *processRunner) build() (commandWrapper, error) {
 			return commandWrapper{}, err
 		}
 
-		cmd.Stdout = stdout
+		wrapper.stdout = stdout.Fd()
 
 		afterStartFuncs = append(afterStartFuncs, func() {
 			stdout.Close() //nolint:errcheck
 		})
 	} else {
-		cmd.Stdout = writer
+		/// wrapper.stdout = writer
+		wrapper.stdout = os.Stdout.Fd()
 	}
 
 	if p.opts.StderrFile != "" {
@@ -158,37 +219,31 @@ func (p *processRunner) build() (commandWrapper, error) {
 			return commandWrapper{}, err
 		}
 
-		cmd.Stderr = stderr
+		wrapper.stderr = stderr.Fd()
 
 		afterStartFuncs = append(afterStartFuncs, func() {
 			stderr.Close() //nolint:errcheck
 		})
 	} else {
-		cmd.Stderr = writer
+		/// wrapper.stderr = writer
+		wrapper.stderr = os.Stdout.Fd()
 	}
 
-	ctty, cttySet := p.opts.Ctty.Get()
-	if cttySet {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Setsid:  true,
-			Setctty: true,
-			Ctty:    ctty,
+	/// closeWriter = false
+
+	wrapper.launcher = launcher
+	wrapper.afterStart = func() {
+		for _, f := range afterStartFuncs {
+			f()
 		}
 	}
+	wrapper.afterTermination = func() error {
+		/// return w.Close()
+		return nil
+	}
+	wrapper.ctty = p.opts.Ctty
 
-	closeWriter = false
-
-	return commandWrapper{
-		cmd: cmd,
-		afterStart: func() {
-			for _, f := range afterStartFuncs {
-				f()
-			}
-		},
-		afterTermination: func() error {
-			return w.Close()
-		},
-	}, nil
+	return wrapper, nil
 }
 
 func (p *processRunner) run(eventSink events.Recorder) error {
@@ -206,20 +261,53 @@ func (p *processRunner) run(eventSink events.Recorder) error {
 		defer reaper.Stop(notifyCh)
 	}
 
-	err = cmdWrapper.cmd.Start()
-
-	cmdWrapper.afterStart()
-
+	pid, err := cmdWrapper.launcher.Launch(&cmdWrapper)
 	if err != nil {
 		return fmt.Errorf("error starting process: %w", err)
 	}
 
-	eventSink(events.StateRunning, "Process %s started with PID %d", p, cmdWrapper.cmd.Process.Pid)
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("could not find process: %w", err)
+	}
+
+	if err := sys.AdjustOOMScore(pid, p.opts.OOMScoreAdj); err != nil {
+		return fmt.Errorf("failed to change OOMScoreAdj of process %s to %d", p, p.opts.OOMScoreAdj)
+	}
+
+	cgroupPath := cgroup.Path(p.opts.CgroupPath)
+
+	if cgroups.Mode() == cgroups.Unified {
+		cgv2, err := cgroup2.Load(cgroupPath)
+		if err != nil {
+			return fmt.Errorf("failed to load cgroup %s: %s", cgroupPath, err)
+		}
+
+		if err := cgv2.AddProc(uint64(pid)); err != nil {
+			return fmt.Errorf("failed to move process %s to cgroup: %s", p, err)
+		}
+	} else {
+		cgv1, err := cgroup1.Load(cgroup1.StaticPath(cgroupPath))
+		if err != nil {
+			return fmt.Errorf("failed to load cgroup %s: %s", cgroupPath, err)
+		}
+
+		if err := cgv1.Add(cgroup1.Process{
+			Pid: pid,
+		}); err != nil {
+			return fmt.Errorf("failed to move process %s to cgroup: %s", p, err)
+		}
+	}
+
+	cmdWrapper.afterStart()
+
+	eventSink(events.StateRunning, "Process %s started with PID %d", p, pid)
 
 	waitCh := make(chan error)
 
 	go func() {
-		waitCh <- reaper.WaitWrapper(usingReaper, notifyCh, cmdWrapper.cmd)
+		_, err := process.Wait()
+		waitCh <- err
 	}()
 
 	select {
@@ -231,7 +319,7 @@ func (p *processRunner) run(eventSink events.Recorder) error {
 		eventSink(events.StateStopping, "Sending SIGTERM to %s", p)
 
 		//nolint:errcheck
-		_ = cmdWrapper.cmd.Process.Signal(syscall.SIGTERM)
+		_ = process.Signal(syscall.SIGTERM)
 	}
 
 	select {
@@ -243,7 +331,7 @@ func (p *processRunner) run(eventSink events.Recorder) error {
 		eventSink(events.StateStopping, "Sending SIGKILL to %s", p)
 
 		//nolint:errcheck
-		_ = cmdWrapper.cmd.Process.Signal(syscall.SIGKILL)
+		_ = process.Signal(syscall.SIGKILL)
 	}
 
 	// wait for process to terminate
