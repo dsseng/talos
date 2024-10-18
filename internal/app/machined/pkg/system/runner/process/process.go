@@ -343,7 +343,7 @@ func (p *processRunner) run(eventSink events.Recorder) error {
 	waitCh := make(chan error)
 
 	go func() {
-		_, err := process.Wait()
+		err := reaper.ProcessWaitWrapper(usingReaper, notifyCh, process)
 		waitCh <- err
 	}()
 
