@@ -8,7 +8,8 @@
 (call system_socket_f (pod_containerd_socket_t))
 (typetransition pod_containerd_t run_t sock_file pod_containerd_socket_t)
 
-; FIXME: runc_cloned memfd execute permission
+; sealed runc memfd created by machined
+(allow pod_containerd_t runc_memfd_t (file (execute_no_trans)))
 
 (allow pod_containerd_t self (user_namespace (create)))
 (allow pod_containerd_t self (unix_stream_socket (connectto)))
