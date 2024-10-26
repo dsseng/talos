@@ -6,6 +6,8 @@
 package selinux
 
 import (
+	"os"
+
 	"github.com/siderolabs/go-procfs/procfs"
 	"golang.org/x/sys/unix"
 
@@ -14,9 +16,13 @@ import (
 
 // SELinuxEnabled checks if SELinux is enabled on the system by reading
 // the kernel command line. It returns true if SELinux is enabled,
-// otherwise it returns false.
-// TODO: check for running in a container as well.
+// otherwise it returns false. It also ensures we're not in a container.
 func SELinuxEnabled() bool {
+	// TODO: resolve circular dependency with platform
+	if _, err := os.Stat("/usr/etc/in-container"); err == nil {
+		return false
+	}
+
 	val := procfs.ProcCmdline().Get(constants.KernelParamSELinux).First()
 	return val != nil
 }
