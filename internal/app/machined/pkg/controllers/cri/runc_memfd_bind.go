@@ -16,9 +16,8 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
 
-	"github.com/siderolabs/go-procfs/procfs"
 	runtimetalos "github.com/siderolabs/talos/internal/app/machined/pkg/runtime"
-	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 )
 
 // RuncMemFDBindController created a locked memfd bind for the runc binary, so that it can be used instead of copying the actual runc binary everytime.
@@ -84,7 +83,7 @@ func (ctrl *RuncMemFDBindController) Run(ctx context.Context, r controller.Runti
 		return fmt.Errorf("mount: failed to mount memfd on top of runc binary path target: %w", err)
 	}
 
-	if val := procfs.ProcCmdline().Get(constants.KernelParamSELinux).First(); val != nil {
+	if selinux.SELinuxEnabled() {
 		if err := unix.Fsetxattr(int(memfdFile.Fd()), "security.selinux", []byte("system_u:object_r:runc_memfd_t:s0"), 0); err != nil {
 			return err
 		}

@@ -12,15 +12,23 @@ import (
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 )
 
+// SELinuxEnabled checks if SELinux is enabled on the system by reading
+// the kernel command line. It returns true if SELinux is enabled,
+// otherwise it returns false.
+// TODO: check for running in a container as well.
+func SELinuxEnabled() bool {
+	val := procfs.ProcCmdline().Get(constants.KernelParamSELinux).First()
+	return val != nil
+}
+
 // SetLabel sets label for file or directory, following symlinks
 // It does not perform the operation in case SELinux is disabled or provided label is empty
-// TODO: check for running in a container as well.
 func SetLabel(filename string, label string) error {
 	if label == "" {
 		return nil
 	}
 
-	if val := procfs.ProcCmdline().Get(constants.KernelParamSELinux).First(); val != nil {
+	if SELinuxEnabled() {
 		if err := unix.Lsetxattr(filename, "security.selinux", []byte(label), 0); err != nil {
 			return err
 		}
