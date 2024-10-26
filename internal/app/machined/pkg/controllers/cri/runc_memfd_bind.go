@@ -41,6 +41,8 @@ func (ctrl *RuncMemFDBindController) Outputs() []controller.Output {
 }
 
 // Run implements controller.Controller interface.
+//
+//nolint:gocyclo
 func (ctrl *RuncMemFDBindController) Run(ctx context.Context, r controller.Runtime, logger *zap.Logger) error {
 	// This controller is only relevant in container mode.
 	if ctrl.V1Alpha1Mode == runtimetalos.ModeContainer {
@@ -83,7 +85,7 @@ func (ctrl *RuncMemFDBindController) Run(ctx context.Context, r controller.Runti
 		return fmt.Errorf("mount: failed to mount memfd on top of runc binary path target: %w", err)
 	}
 
-	if selinux.SELinuxEnabled() {
+	if selinux.IsEnabled() {
 		if err := unix.Fsetxattr(int(memfdFile.Fd()), "security.selinux", []byte("system_u:object_r:runc_memfd_t:s0"), 0); err != nil {
 			return err
 		}
