@@ -54,5 +54,6 @@
 ; Used during reboot probably
 (allow init_t apid_t (unix_stream_socket (connectto)))
 
+; FIXME?
 (allow any_p self (capability (sys_boot sys_module)))
 (allow any_p self (cap_userns (sys_boot sys_module)))
