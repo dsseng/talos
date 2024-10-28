@@ -171,7 +171,7 @@ func beforeExecCallback(pa *syscall.ProcAttr, data any) error {
 				log.Fatalf("%s", err)
 			}
 		} else {
-			err := os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:unconfined_service_t"), 0o777)
+			err := os.WriteFile("/proc/thread-self/attr/exec", []byte("system_u:system_r:unconfined_service_t:s0"), 0o777)
 			if err != nil {
 				log.Fatalf("%s", err)
 			}
