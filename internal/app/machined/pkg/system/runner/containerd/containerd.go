@@ -19,12 +19,11 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/errdefs"
-	"github.com/siderolabs/go-procfs/procfs"
 
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/events"
 	"github.com/siderolabs/talos/internal/app/machined/pkg/system/runner"
 	"github.com/siderolabs/talos/internal/pkg/cgroup"
-	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 )
 
 // containerdRunner is a runner.Runner that runs container in containerd.
@@ -343,7 +342,7 @@ func (c *containerdRunner) newOCISpecOpts(image oci.Image) []oci.SpecOpts {
 		)
 	}
 
-	if procfs.ProcCmdline().Get(constants.KernelParamSELinux).First() != nil {
+	if selinux.IsEnabled() {
 		if c.opts.SelinuxLabel != "" {
 			specOpts = append(
 				specOpts,
