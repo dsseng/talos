@@ -514,6 +514,7 @@ func SetupSharedFilesystems(runtime.Sequence, any) (runtime.TaskExecutionFunc, s
 	return func(ctx context.Context, logger *log.Logger, r runtime.Runtime) (err error) {
 		targets := []string{"/", "/var", "/etc/cni", "/run"}
 		for _, t := range targets {
+			// TODO: SELinux label?
 			if err = unix.Mount("", t, "", unix.MS_SHARED|unix.MS_REC, ""); err != nil {
 				return err
 			}
@@ -661,6 +662,7 @@ func MountUserDisks(runtime.Sequence, any) (runtime.TaskExecutionFunc, string) {
 				volumeStatus.TypedSpec().MountLocation,
 				volumeConfig.TypedSpec().Mount.TargetPath,
 				volumeStatus.TypedSpec().Filesystem.String(),
+				mountv2.WithSelinuxLabel(volumeConfig.TypedSpec().Mount.SelinuxLabel),
 			))
 		}
 

@@ -193,6 +193,9 @@ const (
 	// the state path.
 	StateMountPoint = "/system/state"
 
+	// StateSelinuxLabel is the label to be assigned to the state mount.
+	StateSelinuxLabel = "system_u:object_r:system_state_t:s0"
+
 	// BootPartitionLabel is the label of the partition to use for mounting at
 	// the boot path.
 	BootPartitionLabel = "BOOT"
@@ -208,6 +211,9 @@ const (
 	// EphemeralMountPoint is the label of the partition to use for mounting at
 	// the data path.
 	EphemeralMountPoint = "/var"
+
+	// EphemeralSelinuxLabel is the label to be assigned to the ephemeral mount.
+	EphemeralSelinuxLabel = "system_u:object_r:ephemeral_t:s0"
 
 	// RootMountPoint is the label of the partition to use for mounting at
 	// the root path.
@@ -681,6 +687,15 @@ const (
 	// and directories.
 	SystemPath = "/system"
 
+	// SystemSelinuxLabel is the SELinux label for runtime system related files and directories.
+	SystemSelinuxLabel = "system_u:object_r:system_t:s0"
+
+	// RunPath is the path to the system run directory.
+	RunPath = "/run"
+
+	// RunSelinuxLabel is the SELinux label for the run directory.
+	RunSelinuxLabel = "system_u:object_r:run_t:s0"
+
 	// VarSystemOverlaysPath is the path where overlay mounts are created.
 	VarSystemOverlaysPath = "/var/system/overlays"
 
@@ -690,8 +705,14 @@ const (
 	// SystemVarPath is the path to the system var directory.
 	SystemVarPath = SystemPath + "/var"
 
+	// SystemVarSelinuxLabel is the SELinux label for the system var directory.
+	SystemVarSelinuxLabel = "system_u:object_r:system_var_t:s0"
+
 	// SystemEtcPath is the path to the system etc directory.
 	SystemEtcPath = SystemPath + "/etc"
+
+	// SystemEtcSelinuxLabel is the SELinux label for the system etc directory.
+	SystemEtcSelinuxLabel = "system_u:object_r:system_etc_t:s0"
 
 	// SystemLibexecPath is the path to the system libexec directory.
 	SystemLibexecPath = SystemPath + "/libexec"

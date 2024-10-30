@@ -51,6 +51,7 @@
 
 (typeattribute unconfined_f)
 (typeattributeset unconfined_f tmpfs_t)
+(typeattributeset unconfined_f ephemeral_t)
 (typeattributeset unconfined_f common_f)
 (typeattributeset unconfined_f common_device_f)
 

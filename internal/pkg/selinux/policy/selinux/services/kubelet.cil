@@ -1,3 +1,4 @@
 (type kubelet_t)
 (call pod_p (kubelet_t))
-; FIXME: insecure as anyone with access to the pod containerd may obtain this domain (executable in ephemeral)
+; FIXME: insecure as anyone with access to the pod containerd may obtain this domain
+(allow kubelet_t ephemeral_t (file (entrypoint execute_no_trans)))

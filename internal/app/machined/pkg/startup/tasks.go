@@ -34,6 +34,21 @@ func SetupSystemDirectories(ctx context.Context, log *zap.Logger, rt runtime.Run
 		if err := os.MkdirAll(path, 0o700); err != nil {
 			return fmt.Errorf("setupSystemDirectories: %w", err)
 		}
+
+		var label string
+
+		switch p {
+		case constants.SystemEtcPath:
+			label = constants.SystemEtcSelinuxLabel
+		case constants.SystemVarPath:
+			label = constants.SystemVarSelinuxLabel
+		default: // /system/state is another mount
+			label = ""
+		}
+
+		if err = selinux.SetLabel(p, label); err != nil {
+			return err
+		}
 	}
 
 	for _, path := range []string{constants.SystemRunPath} {

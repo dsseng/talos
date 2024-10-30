@@ -999,6 +999,7 @@ MountSpec is the spec for volume mount.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | target_path | [string](#string) |  |  |
+| selinux_label | [string](#string) |  |  |
 
 
 
