@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"maps"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/siderolabs/go-pointer"
 	"github.com/siderolabs/go-procfs/procfs"
+	"golang.org/x/exp/slices"
 
 	"github.com/siderolabs/talos/cmd/talosctl/pkg/talos/helpers"
 	"github.com/siderolabs/talos/internal/integration/base"
@@ -67,13 +69,23 @@ func (suite *SELinuxSuite) getLabel(nodeCtx context.Context, pid int32) string {
 	return string(bytes.TrimSpace(value))
 }
 
-// TestRuntimeFileLabels reads labels of runtime-created files from xattrs
-// to ensure SELinux labels for files are set when they are created.
-func (suite *SELinuxSuite) TestRuntimeFileLabels() {
+// TestFileMountLabels reads labels of runtime-created files and mounts from xattrs
+// to ensure SELinux labels for files are set when they are created and FS's are mounted with correct labels.
+func (suite *SELinuxSuite) TestFileMountLabels() {
 	workers := suite.DiscoverNodeInternalIPsByType(suite.ctx, machine.TypeWorker)
 	controlplanes := suite.DiscoverNodeInternalIPsByType(suite.ctx, machine.TypeControlPlane)
 
 	expectedLabelsWorker := map[string]string{
+		// Mounts
+		constants.SystemPath:          constants.SystemSelinuxLabel,
+		constants.EphemeralMountPoint: constants.EphemeralSelinuxLabel,
+		constants.StateMountPoint:     constants.StateSelinuxLabel,
+		constants.SystemEtcPath:       constants.SystemEtcSelinuxLabel,
+		constants.SystemVarPath:       constants.SystemVarSelinuxLabel,
+		// Newly created files belong to either system_u or client_u, so match the end of label.
+		constants.RunPath: ":object_r:run_t:s0",
+		"/var/run":        ":object_r:run_t:s0",
+		// Runtime files
 		constants.APIRuntimeSocketPath:  constants.APIRuntimeSocketLabel,
 		constants.APISocketPath:         constants.APISocketLabel,
 		constants.DBusClientSocketPath:  constants.DBusClientSocketLabel,
@@ -82,14 +94,8 @@ func (suite *SELinuxSuite) TestRuntimeFileLabels() {
 		constants.MachineSocketPath:     constants.MachineSocketLabel,
 	}
 
+	// Only running on controlplane
 	expectedLabelsControlPlane := map[string]string{
-		constants.APIRuntimeSocketPath:  constants.APIRuntimeSocketLabel,
-		constants.APISocketPath:         constants.APISocketLabel,
-		constants.DBusClientSocketPath:  constants.DBusClientSocketLabel,
-		constants.UdevRulesPath:         constants.UdevRulesLabel,
-		constants.DBusServiceSocketPath: constants.DBusServiceSocketLabel,
-		constants.MachineSocketPath:     constants.MachineSocketLabel,
-		// Only running on controlplane
 		constants.EtcdPKIPath:                           constants.EtcdPKISELinuxLabel,
 		constants.KubernetesAPIServerConfigDir:          constants.KubernetesAPIServerConfigDirSELinuxLabel,
 		constants.KubernetesAPIServerSecretsDir:         constants.KubernetesAPIServerSecretsDirSELinuxLabel,
@@ -98,12 +104,19 @@ func (suite *SELinuxSuite) TestRuntimeFileLabels() {
 		constants.KubernetesSchedulerSecretsDir:         constants.KubernetesSchedulerSecretsDirSELinuxLabel,
 		constants.TrustdRuntimeSocketPath:               constants.TrustdRuntimeSocketLabel,
 	}
+	maps.Copy(expectedLabelsControlPlane, expectedLabelsWorker)
 
 	suite.checkFileLabels(workers, expectedLabelsWorker)
 	suite.checkFileLabels(controlplanes, expectedLabelsControlPlane)
 }
 
+//nolint:gocyclo
 func (suite *SELinuxSuite) checkFileLabels(nodes []string, expectedLabels map[string]string) {
+	paths := make([]string, 0, len(expectedLabels))
+	for k := range expectedLabels {
+		paths = append(paths, k)
+	}
+
 	for _, node := range nodes {
 		nodeCtx := client.WithNode(suite.ctx, node)
 		cmdline := suite.ReadCmdline(nodeCtx)
@@ -129,6 +142,11 @@ func (suite *SELinuxSuite) checkFileLabels(nodes []string, expectedLabels map[st
 				suite.Require().NoError(err)
 
 				suite.Require().NoError(helpers.ReadGRPCStream(stream, func(info *machineapi.FileInfo, node string, multipleNodes bool) error {
+					// E.g. /var/lib should inherit /var label, while /var/run is a new mountpoint
+					if slices.Contains(paths, info.Name) && info.Name != path {
+						return nil
+					}
+
 					suite.Require().NotNil(info.Xattrs)
 
 					found := false
@@ -136,7 +154,7 @@ func (suite *SELinuxSuite) checkFileLabels(nodes []string, expectedLabels map[st
 					for _, l := range info.Xattrs {
 						if l.Name == "security.selinux" {
 							got := string(bytes.Trim(l.Data, "\x00\n"))
-							suite.Require().Equal(got, label, "expected %s to have label %s, got %s", path, label, got)
+							suite.Require().Contains(got, label, "expected %s to have label %s, got %s", path, label, got)
 
 							found = true
 
@@ -225,7 +243,8 @@ func (suite *SELinuxSuite) TestProcessLabels() {
 	}
 }
 
-// TODO: test for volume labels
+// TODO: test for all machined-created files
+// TODO: test for system and CRI container labels
 // TODO: test labels for unconfined system extensions, pods
 // TODO: test for no avc denials in dmesg
 // TODO: start a pod and ensure access to restricted resources is denied
