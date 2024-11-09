@@ -6,12 +6,13 @@
 package selinux
 
 import (
+	"bytes"
 	_ "embed"
 	"log"
 	"os"
 
+	"github.com/pkg/xattr"
 	"github.com/siderolabs/go-procfs/procfs"
-	"golang.org/x/sys/unix"
 
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 )
@@ -45,15 +46,26 @@ func IsEnforcing() bool {
 	return val != nil && *val == "1"
 }
 
-// SetLabel sets label for file or directory, following symlinks
-// It does not perform the operation in case SELinux is disabled or provided label is empty.
+// SetLabel sets label for file, directory or symlink (not following symlinks)
+// It does not perform the operation in case SELinux is disabled, provided label is empty or already set.
 func SetLabel(filename string, label string) error {
 	if label == "" {
 		return nil
 	}
 
 	if IsEnabled() {
-		if err := unix.Lsetxattr(filename, "security.selinux", []byte(label), 0); err != nil {
+		// We use LGet/LSet so that we manipulate label on the exact path, not the symlink target.
+		currentLabel, err := xattr.LGet(filename, "security.selinux")
+		if err != nil {
+			return err
+		}
+
+		// Skip extra FS transactions when labels are okay.
+		if string(bytes.Trim(currentLabel, "\x00\n")) == label {
+			return nil
+		}
+
+		if err := xattr.LSet(filename, "security.selinux", []byte(label)); err != nil {
 			return err
 		}
 	}

@@ -469,6 +469,9 @@ const (
 	// EtcdDataPath is the path where etcd stores its' data.
 	EtcdDataPath = "/var/lib/etcd"
 
+	// EtcdDataSELinuxLabel is the SELinux label for the etcd data directory.
+	EtcdDataSELinuxLabel = "system_u:object_r:etcd_data_t:s0"
+
 	// EtcdRecoverySnapshotPath is the path where etcd snapshot is uploaded for recovery.
 	EtcdRecoverySnapshotPath = "/var/lib/etcd.snapshot"
 

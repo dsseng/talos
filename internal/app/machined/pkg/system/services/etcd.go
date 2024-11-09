@@ -93,6 +93,11 @@ func (e *Etcd) PreFunc(ctx context.Context, r runtime.Runtime) error {
 		return err
 	}
 
+	// Relabel in case of upgrade from older version or SELinux being disabled and then enabled.
+	if err := filetree.RelabelRecursive(constants.EtcdDataPath, constants.EtcdDataSELinuxLabel); err != nil {
+		return err
+	}
+
 	// Make sure etcd user can access files in the data directory.
 	if err := filetree.ChownRecursive(constants.EtcdDataPath, constants.EtcdUserID, constants.EtcdUserID); err != nil {
 		return err

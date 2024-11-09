@@ -97,6 +97,7 @@ func (suite *SELinuxSuite) TestFileMountLabels() {
 	// Only running on controlplane
 	expectedLabelsControlPlane := map[string]string{
 		constants.EtcdPKIPath:                           constants.EtcdPKISELinuxLabel,
+		constants.EtcdDataPath:                          constants.EtcdDataSELinuxLabel,
 		constants.KubernetesAPIServerConfigDir:          constants.KubernetesAPIServerConfigDirSELinuxLabel,
 		constants.KubernetesAPIServerSecretsDir:         constants.KubernetesAPIServerSecretsDirSELinuxLabel,
 		constants.KubernetesControllerManagerSecretsDir: constants.KubernetesControllerManagerSecretsDirSELinuxLabel,
