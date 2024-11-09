@@ -304,8 +304,6 @@ func (p *Point) mount() error {
 	}
 
 	if p.selinuxLabel != "" {
-		fmt.Printf("relabeling mount %s to %s\n", p.target, p.selinuxLabel)
-
 		return selinux.SetLabel(p.target, p.selinuxLabel)
 	}
 
