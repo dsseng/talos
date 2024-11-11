@@ -148,7 +148,7 @@ func (suite *SELinuxSuite) checkFileLabels(nodes []string, expectedLabels map[st
 						return nil
 					}
 
-					suite.Require().NotNil(info.Xattrs)
+					suite.Require().NotNil(info.Xattrs, "expected %s to have xattr", path)
 
 					found := false
 

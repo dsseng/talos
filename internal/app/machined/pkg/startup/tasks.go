@@ -35,26 +35,17 @@ func SetupSystemDirectories(ctx context.Context, log *zap.Logger, rt runtime.Run
 			return fmt.Errorf("setupSystemDirectories: %w", err)
 		}
 
-		var label string
-
-		switch p {
-		case constants.SystemEtcPath:
-			label = constants.SystemEtcSelinuxLabel
-		case constants.SystemVarPath:
-			label = constants.SystemVarSelinuxLabel
-		default: // /system/state is another mount
-			label = ""
-		}
-
-		if err = selinux.SetLabel(p, label); err != nil {
-			return err
-		}
+		fmt.Println("selinux: relabeling from SetupSystemDirectory:", p)
+		filetree.Relabel(p)
 	}
 
 	for _, path := range []string{constants.SystemRunPath} {
 		if err := os.MkdirAll(path, 0o751); err != nil {
 			return fmt.Errorf("setupSystemDirectories: %w", err)
 		}
+
+		fmt.Println("selinux: relabeling from SetupSystemDirectory:", p)
+		filetree.Relabel(path)
 	}
 
 	return next()(ctx, log, rt, next)

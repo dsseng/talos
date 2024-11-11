@@ -18,7 +18,7 @@ import (
 	"github.com/siderolabs/go-retry/retry"
 	"golang.org/x/sys/unix"
 
-	"github.com/siderolabs/talos/internal/pkg/selinux"
+	"github.com/siderolabs/talos/pkg/filetree"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 )
 
@@ -303,11 +303,12 @@ func (p *Point) mount() error {
 		return err
 	}
 
-	if p.selinuxLabel != "" {
-		return selinux.SetLabel(p.target, p.selinuxLabel)
+	if p.fstype == "tmpfs" {
+		// tmpfs is mounted clean, so no need to relabel what is under them
+		return filetree.Relabel(p.target)
+	} else {
+		return filetree.RelabelRecursive(p.target)
 	}
-
-	return nil
 }
 
 func (p *Point) unmount(printer func(string, ...any)) error {
