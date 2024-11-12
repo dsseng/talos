@@ -36,7 +36,7 @@ func SetupSystemDirectories(ctx context.Context, log *zap.Logger, rt runtime.Run
 		}
 
 		fmt.Println("selinux: relabeling from SetupSystemDirectory:", p)
-		filetree.Relabel(p)
+		selinux.RelabelDirectory(p)
 	}
 
 	for _, path := range []string{constants.SystemRunPath} {
@@ -45,7 +45,7 @@ func SetupSystemDirectories(ctx context.Context, log *zap.Logger, rt runtime.Run
 		}
 
 		fmt.Println("selinux: relabeling from SetupSystemDirectory:", p)
-		filetree.Relabel(path)
+		selinux.RelabelDirectory(p)
 	}
 
 	return next()(ctx, log, rt, next)

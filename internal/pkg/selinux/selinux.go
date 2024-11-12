@@ -95,11 +95,11 @@ func Init() error {
 	log.Println("selinux: policy loaded")
 
 	// TODO: move to special relabeling task or mount earlier?
-	if err := SetLabel(constants.SystemPath, constants.SystemSelinuxLabel); err != nil {
+	if err := RelabelDirectoryRecursive(constants.SystemPath); err != nil {
 		return err
 	}
 
-	if err := SetLabel(constants.RunPath, constants.RunSelinuxLabel); err != nil {
+	if err := RelabelDirectoryRecursive(constants.RunPath); err != nil {
 		return err
 	}
 

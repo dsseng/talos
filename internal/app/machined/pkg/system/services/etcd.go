@@ -40,6 +40,7 @@ import (
 	"github.com/siderolabs/talos/internal/pkg/containers/image"
 	"github.com/siderolabs/talos/internal/pkg/environment"
 	"github.com/siderolabs/talos/internal/pkg/etcd"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/argsbuilder"
 	"github.com/siderolabs/talos/pkg/conditions"
 	"github.com/siderolabs/talos/pkg/filetree"
@@ -94,7 +95,7 @@ func (e *Etcd) PreFunc(ctx context.Context, r runtime.Runtime) error {
 	}
 
 	// Relabel in case of upgrade from older version or SELinux being disabled and then enabled.
-	if err := filetree.RelabelRecursive(constants.EtcdDataPath); err != nil {
+	if err := selinux.RelabelDirectoryRecursive(constants.EtcdDataPath); err != nil {
 		return err
 	}
 

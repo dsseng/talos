@@ -2,7 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-package filetree
+// Package selinux provides generic code for managing SELinux.
+package selinux
 
 import (
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 )
 
@@ -73,15 +73,15 @@ func SetLabelRecursive(root, label string, excl []Label) error {
 			}
 		}
 
-		return selinux.SetLabel(path, label)
+		return SetLabel(path, label)
 	})
 }
 
-// RelabelRecursive ensures files SELinux labels match expected ones under specified root.
+// RelabelDirectoryRecursive ensures files SELinux labels match expected ones under specified root.
 // TODO: skip relabeling a root by a flag file:
 // We set this file when relabeling, and normally we never need to relabel while running with SE enabled
 // However if the system has been running without SELinux, new files didn't get labels, so on such boot flags must be removed
-func RelabelRecursive(root string) error {
+func RelabelDirectoryRecursive(root string) error {
 	for i, l := range labels {
 		// Set labels for everything under the given root
 		if !strings.HasPrefix(root, l.Prefix) {
@@ -97,15 +97,15 @@ func RelabelRecursive(root string) error {
 	return nil
 }
 
-// Relabel ensures files SELinux label matches expected one for the directory or mount.
-func Relabel(root string) error {
+// RelabelDirectory ensures directory SELinux label matches expected one.
+func RelabelDirectory(root string) error {
 	for _, l := range labels {
 		if !strings.HasPrefix(root, l.Prefix) {
 			continue
 		}
 
 		fmt.Println("selinux: Relabeling single", l.Prefix, "to", l.Label)
-		if err := selinux.SetLabel(l.Prefix, l.Label); err != nil {
+		if err := SetLabel(l.Prefix, l.Label); err != nil {
 			return err
 		}
 	}
