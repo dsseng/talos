@@ -303,10 +303,6 @@ func (p *Point) mount() error {
 		return err
 	}
 
-	if p.selinuxLabel == "" {
-		return nil
-	}
-
 	if p.fstype == "tmpfs" {
 		// tmpfs is mounted clean, so no need to relabel what is under them
 		return selinux.RelabelDirectory(p.target)
