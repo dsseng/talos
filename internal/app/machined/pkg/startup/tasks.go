@@ -17,6 +17,7 @@ import (
 	"github.com/siderolabs/talos/internal/app/machined/pkg/runtime"
 	"github.com/siderolabs/talos/internal/pkg/environment"
 	"github.com/siderolabs/talos/internal/pkg/mount/v2"
+	"github.com/siderolabs/talos/internal/pkg/selinux"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
 	"github.com/siderolabs/talos/pkg/machinery/resources/block"
 )
@@ -35,8 +36,8 @@ func SetupSystemDirectories(ctx context.Context, log *zap.Logger, rt runtime.Run
 			return fmt.Errorf("setupSystemDirectories: %w", err)
 		}
 
-		fmt.Println("selinux: relabeling from SetupSystemDirectory:", p)
-		selinux.RelabelDirectory(p)
+		fmt.Println("selinux: relabeling from SetupSystemDirectory:", path)
+		selinux.RelabelDirectory(path)
 	}
 
 	for _, path := range []string{constants.SystemRunPath} {
@@ -44,8 +45,8 @@ func SetupSystemDirectories(ctx context.Context, log *zap.Logger, rt runtime.Run
 			return fmt.Errorf("setupSystemDirectories: %w", err)
 		}
 
-		fmt.Println("selinux: relabeling from SetupSystemDirectory:", p)
-		selinux.RelabelDirectory(p)
+		fmt.Println("selinux: relabeling from SetupSystemDirectory:", path)
+		selinux.RelabelDirectory(path)
 	}
 
 	return next()(ctx, log, rt, next)
