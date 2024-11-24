@@ -6,6 +6,10 @@
 (call system_socket_f (pod_containerd_socket_t))
 (typetransition pod_containerd_t run_t sock_file pod_containerd_socket_t)
 
+(allow pod_containerd_t self (user_namespace (create)))
+(allow pod_containerd_t self (unix_stream_socket (connectto)))
+(allow init_t pod_containerd_t (unix_stream_socket (connectto)))
+
 ; Transition to pod contexts
 (allow pod_containerd_t pod_p (process2 (nnp_transition nosuid_transition)))
 (allow pod_containerd_t pod_p (process (transition)))
@@ -13,6 +17,9 @@
 ; Manage procfs & processes
 (allow pod_containerd_t pod_p (fs_classes (rw)))
 (allow pod_containerd_t pod_p (process_classes (full)))
+
+(allow pod_containerd_t self (key (view read write search link setattr create)))
+(allow pod_containerd_t pod_p (key (view read write search link setattr create)))
 
 ; Access overlayfs parameters
 (allow pod_containerd_t sys_module_t (fs_classes (ro)))
@@ -52,6 +59,46 @@
 (type containerd_state_t)
 (call common_f (containerd_state_t))
 
+; access procfs
+(allow pod_p any_p (fs_classes (ro)))
+(allow pod_p any_p (process (
+    getattr
+    getcap
+    getpgid
+    getrlimit
+    getsched
+    getsession
+)))
+(allow pod_p sysfs_t (fs_classes (ro)))
+(allow pod_p device_t (fs_classes (rw)))
+
+(allow pod_p pod_containerd_t (fd (use)))
+(allow pod_p pod_containerd_t (fifo_file (open ioctl read write append)))
+
+(allow pod_p self (unix_stream_socket (connectto)))
+
+; kube-proxy demands
+(allow pod_p proc_sysctl_t (fs_classes (rw)))
+; comm="loopback"
+(allow pod_p nsfs_t (fs_classes (ro)))
+; flannel
+; FIXME: specifics, protect kubelet config with staic pods and other importants
+(allow pod_p etc_t (fs_classes (rw)))
+; flannel
+(allow pod_p init_t (fd (use)))
+; flannel
+; FIXME: specifics
+(allow pod_p run_t (fs_classes (rw)))
+; used in networking
+(allow pod_p kernel_t (fd (use)))
+; kube-controller
+(allow pod_p cgroup_t (fs_classes (ro)))
+; TODO: add a boolean to disable this for extra hardening
+(allow pod_p self (process (ptrace)))
+
+(allow pod_p pod_containerd_t (netlink_classes (full)))
+(allow pod_containerd_t pod_p (netlink_classes (full)))
+
 (type kube_apiserver_config_t)
 (call protected_f (kube_apiserver_config_t))
 (allow kube_apiserver_config_t tmpfs_t (filesystem (associate)))
@@ -74,3 +121,6 @@
 (typeattributeset kube_secret_f kube_apiserver_secret_t)
 (typeattributeset kube_secret_f kube_controller_manager_secret_t)
 (typeattributeset kube_secret_f kube_scheduler_secret_t)
+
+; FIXME: add context for kube services
+(allow pod_p kube_secret_f (fs_classes (rw)))

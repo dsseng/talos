@@ -14,3 +14,48 @@
 (type kubelet_state_t)
 (call system_f (kubelet_state_t))
 (allow init_t kubelet_state_t (fs_classes (rw)))
+
+; procfs access
+(allow kubelet_t any_p (fs_classes (ro)))
+
+; Manage cgroups
+(allow kubelet_t cgroup_t (fs_classes (rw)))
+
+; D-Bus socket used for shutdown notification, owned by machined
+(allow kubelet_t dbus_client_socket_t (sock_file (append getattr open write)))
+(allow kubelet_t init_t (unix_stream_socket (connectto getattr)))
+
+; CRI socket
+(allow kubelet_t pod_containerd_socket_t (sock_file (append getattr open write)))
+(allow kubelet_t pod_containerd_t (unix_stream_socket (connectto getattr)))
+
+; Read misc kernel properties
+(allow kubelet_t proc_sysctl_t (fs_classes (ro)))
+
+; Manage filesystem quotas and mounts
+(allow kubelet_t filesystem_f (filesystem (
+    associate
+    getattr
+    mount
+    quotaget
+    quotamod
+    relabelfrom
+    relabelto
+    remount
+    unmount
+    watch
+)))
+(allow kubelet_t run_t (fs_classes (full)))
+
+; pipe to machined
+(allow kubelet_t init_t (fd (use)))
+(allow kubelet_t init_t (fifo_file (write)))
+
+; syslog
+(allow kubelet_t kernel_t (system (syslog_read)))
+(allow kubelet_t self (capability2 (syslog)))
+
+; TODO: constrain
+(allow kubelet_t device_f (fs_classes (rw)))
+(allow kubelet_t sysfs_t (fs_classes (ro)))
+(allow kubelet_t securityfs_t (fs_classes (ro)))

@@ -1,3 +1,33 @@
+(type usr_t)
+(call system_f (usr_t))
+(filecon "/usr(/.*)?" any (system_u object_r usr_t (systemLow systemLow)))
+
+(type bin_t)
+(call system_f (bin_t))
+(context bin_t (system_u object_r bin_t (systemLow systemLow)))
+(filecon "/bin(/.*)?" any bin_t)
+(filecon "/usr/bin(/.*)?" any bin_t)
+; (filecon "/sbin(/.*)?" any bin_t)
+; (filecon "/usr/sbin(/.*)?" any bin_t)
+(filecon "/usr/libexec(/.*)?" any bin_t)
+
+(type ssl_certificates_t)
+(call common_f (ssl_certificates_t))
+(context ssl_certificates_t (system_u object_r ssl_certificates_t (systemLow systemLow)))
+(filecon "/etc/ssl(/.*)?" any ssl_certificates_t)
+(filecon "/etc/pki(/.*)?" any ssl_certificates_t)
+(filecon "/usr/share/ca-certificates(/.*)?" any ssl_certificates_t)
+(filecon "/usr/local/share/ca-certificates(/.*)?" any ssl_certificates_t)
+(filecon "/etc/ca-certificates(/.*)?" any ssl_certificates_t)
+
+(type extra_t)
+(call system_f (extra_t))
+(filecon "/.extra(/.*)?" any (system_u object_r extra_t (systemLow systemLow)))
+
+(type firmware_t)
+(call system_f (firmware_t))
+(filecon "/lib/firmware(/.*)?" any (system_u object_r firmware_t (systemLow systemLow)))
+
 ; Runtime and mounted filesystems
 (type system_t)
 (call filesystem_f (system_t))
@@ -28,3 +58,40 @@
 (type opt_t)
 (call filesystem_f (opt_t))
 (filecon "/opt(/.*)?" any (system_u object_r opt_t (systemLow systemLow)))
+
+; Random programs might want to do this on all FS's
+(allow any_p fs_t (filesystem (getattr)))
+
+(allow any_f self (filesystem (associate)))
+(allow common_device_f device_t (filesystem (associate)))
+(allow protected_device_f device_t (filesystem (associate)))
+
+(allow any_p unconfined_f (fs_classes (rw)))
+(allow any_p self (fs_classes (rw)))
+(allow any_p self (anon_inode (
+    append
+    audit_access
+    create
+    execmod
+    execute
+    getattr
+    ioctl
+    link
+    lock
+    map
+    mounton
+    open
+    quotaon
+    read
+    relabelfrom
+    relabelto
+    rename
+    setattr
+    unlink
+    watch
+    watch_mount
+    watch_reads
+    watch_sb
+    watch_with_perm
+    write
+)))

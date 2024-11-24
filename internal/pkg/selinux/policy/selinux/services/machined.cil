@@ -53,3 +53,16 @@
 
 ; Configure kubelet
 (allow init_t kubelet_state_t (fs_classes (rw)))
+
+(allow init_t kernel_t (fd (use)))
+(allow init_t kernel_t (system (
+    ipc_info
+    module_load
+    module_request
+    syslog_console
+    syslog_mod
+    syslog_read
+)))
+(allow init_t self (capability2 (syslog)))
+
+(allow init_t self (unix_stream_socket (connectto)))
