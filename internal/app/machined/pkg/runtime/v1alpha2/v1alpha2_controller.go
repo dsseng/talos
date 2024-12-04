@@ -193,6 +193,11 @@ func (ctrl *Controller) Run(ctx context.Context, drainer *runtime.Drainer) error
 			LVM:          lvm,
 		},
 		&storage.LVMVolumeGroupSpecController{},
+		&block.FSScrubConfigController{},
+		&block.FSScrubScheduleController{},
+		&block.FSScrubController{
+			Runtime: ctrl.v1alpha1Runtime,
+		},
 		&cluster.AffiliateMergeController{},
 		cluster.NewConfigController(),
 		&cluster.DiscoveryServiceController{},
@@ -497,6 +502,9 @@ func (ctrl *Controller) Run(ctx context.Context, drainer *runtime.Drainer) error
 		},
 		&runtimecontrollers.UniqueMachineTokenController{},
 		&runtimecontrollers.VersionController{},
+		&runtimecontrollers.TasksController{
+			Runtime: ctrl.v1alpha1Runtime,
+		},
 		&runtimecontrollers.WatchdogTimerConfigController{},
 		&runtimecontrollers.WatchdogTimerController{},
 		&runtimecontrollers.OOMController{
