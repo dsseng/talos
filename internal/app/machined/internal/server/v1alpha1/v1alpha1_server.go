@@ -2194,24 +2194,26 @@ func (w *packetStreamWriter) Write(data []byte) (int, error) {
 //
 //nolint:gocyclo
 func (s *Server) PacketCapture(in *machine.PacketCaptureRequest, srv machine.MachineService_PacketCaptureServer) error {
-	linkInfo, err := safe.StateGetResource(srv.Context(), s.Controller.Runtime().State().V1Alpha2().Resources(), network.NewLinkStatus(network.NamespaceName, in.Interface))
-	if err != nil {
-		if state.IsNotFoundError(err) {
-			return status.Errorf(codes.NotFound, "interface %q not found", in.Interface)
+	linkType := pcap.LinkTypeEthernet
+
+	if in.Interface != "" {
+		linkInfo, err := safe.StateGetResource(srv.Context(), s.Controller.Runtime().State().V1Alpha2().Resources(), network.NewLinkStatus(network.NamespaceName, in.Interface))
+		if err != nil {
+			if state.IsNotFoundError(err) {
+				return status.Errorf(codes.NotFound, "interface %q not found", in.Interface)
+			}
+
+			return err
 		}
 
-		return err
-	}
-
-	var linkType pcap.LinkType
-
-	switch linkInfo.TypedSpec().Type { //nolint:exhaustive
-	case nethelpers.LinkEther, nethelpers.LinkLoopbck:
-		linkType = pcap.LinkTypeEthernet
-	case nethelpers.LinkNone:
-		linkType = pcap.LinkTypeRaw
-	default:
-		return status.Errorf(codes.InvalidArgument, "unsupported link type %s", linkInfo.TypedSpec().Type)
+		switch linkInfo.TypedSpec().Type { //nolint:exhaustive
+		case nethelpers.LinkEther, nethelpers.LinkLoopbck:
+			linkType = pcap.LinkTypeEthernet
+		case nethelpers.LinkNone:
+			linkType = pcap.LinkTypeRaw
+		default:
+			return status.Errorf(codes.InvalidArgument, "unsupported link type %s", linkInfo.TypedSpec().Type)
+		}
 	}
 
 	if in.SnapLen == 0 {
