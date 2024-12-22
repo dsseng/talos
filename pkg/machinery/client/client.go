@@ -879,6 +879,18 @@ func (c *Client) PacketCapture(ctx context.Context, req *machineapi.PacketCaptur
 	return ReadStream(stream)
 }
 
+// Logs implements the proto.MachineServiceClient interface.
+func (c *Client) Ping(ctx context.Context, address string, iface string, ttl uint32, interval time.Duration) (stream machineapi.MachineService_PingClient, err error) {
+	stream, err = c.MachineClient.Ping(ctx, &machineapi.PingRequest{
+		Address:   address,
+		Interface: iface,
+		Ttl:       ttl,
+		Interval:  durationpb.New(interval),
+	})
+
+	return
+}
+
 // MachineStream is a common interface for streams returned by streaming APIs.
 type MachineStream interface {
 	Recv() (*common.Data, error)

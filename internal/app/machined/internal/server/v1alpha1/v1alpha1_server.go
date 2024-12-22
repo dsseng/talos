@@ -32,6 +32,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/nberlee/go-netstat/netstat"
 	"github.com/pkg/xattr"
+	probing "github.com/prometheus-community/pro-bing"
 	"github.com/prometheus/procfs"
 	"github.com/rs/xid"
 	"github.com/siderolabs/gen/xslices"
@@ -2319,6 +2320,74 @@ func capturePackets(ctx context.Context, w io.Writer, handle *afpacket.TPacket, 
 
 		time.Sleep(5 * time.Millisecond) // short sleep before retrying some errors
 	}
+}
+
+// Ping allows pinging a network address and streams the results.
+func (s *Server) Ping(req *machine.PingRequest, l machine.MachineService_PingServer) (err error) {
+	// for data := range 15 {
+	// 	time.Sleep(req.GetInterval().AsDuration())
+	// 	str := fmt.Sprintf("ping %s: %d\n", req.Address, data)
+	// 	log.Print(str)
+	// 	if err = l.Send(&common.Data{
+	// 		Metadata: &common.Metadata{
+	// 			Error: "",
+	// 		},
+	// 		Bytes: slices.Clone([]byte(str)),
+	// 	}); err != nil {
+	// 		log.Println("error sending ping response:", err)
+	// 		return
+	// 	}
+	// }
+
+	pinger, err := probing.NewPinger(req.Address)
+	if err != nil {
+		fmt.Println("ERROR:", err)
+		return
+	}
+
+	go func() {
+		select {
+		case <-l.Context().Done():
+			pinger.Stop()
+		}
+	}()
+
+	pinger.OnRecv = func(pkt *probing.Packet) {
+		fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v ttl=%v\n",
+			pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt, pkt.TTL)
+	}
+	pinger.OnDuplicateRecv = func(pkt *probing.Packet) {
+		fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v ttl=%v (DUP!)\n",
+			pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt, pkt.TTL)
+	}
+	pinger.OnFinish = func(stats *probing.Statistics) {
+		fmt.Printf("\n--- %s ping statistics ---\n", stats.Addr)
+		fmt.Printf("%d packets transmitted, %d packets received, %d duplicates, %v%% packet loss\n",
+			stats.PacketsSent, stats.PacketsRecv, stats.PacketsRecvDuplicates, stats.PacketLoss)
+		fmt.Printf("round-trip min/avg/max/stddev = %v/%v/%v/%v\n",
+			stats.MinRtt, stats.AvgRtt, stats.MaxRtt, stats.StdDevRtt)
+	}
+
+	// pinger.Count = 30
+	// pinger.Size = *size
+	pinger.Interval = req.Interval.AsDuration()
+	// pinger.Timeout = *timeout
+	if req.Ttl != 64 {
+		pinger.TTL = int(req.Ttl)
+	}
+	if req.Interface != "" {
+		pinger.InterfaceName = req.Interface
+	}
+	pinger.SetPrivileged(true)
+
+	fmt.Printf("PING %s (%s):\n", pinger.Addr(), pinger.IPAddr())
+	err = pinger.Run()
+	if err != nil {
+		fmt.Println("Failed to ping target host:", err)
+	}
+	log.Println("ping done")
+
+	return nil
 }
 
 func tryLockUpgradeMutex(ctx context.Context, etcdClient *etcd.Client) (unlock func(), err error) {

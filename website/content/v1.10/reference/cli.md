@@ -2554,6 +2554,37 @@ talosctl pcap [flags]
 
 * [talosctl](#talosctl)	 - A CLI for out-of-band management of Kubernetes nodes created by Talos
 
+## talosctl ping
+
+Ping a network host
+
+```
+talosctl ping <host> [flags]
+```
+
+### Options
+
+```
+  -h, --help                help for ping
+  -I, --interface string    interface to use
+  -i, --interval duration   interval between pings (default 500ms)
+  -t, --ttl uint32          time to live (default 64)
+```
+
+### Options inherited from parent commands
+
+```
+      --cluster string       Cluster to connect to if a proxy endpoint is used.
+      --context string       Context to be used in command
+  -e, --endpoints strings    override default endpoints in Talos configuration
+  -n, --nodes strings        target the specified nodes
+      --talosconfig string   The path to the Talos configuration file. Defaults to 'TALOSCONFIG' env variable if set, otherwise '$HOME/.talos/config' and '/var/run/secrets/talos.dev/config' in order.
+```
+
+### SEE ALSO
+
+* [talosctl](#talosctl)	 - A CLI for out-of-band management of Kubernetes nodes created by Talos
+
 ## talosctl processes
 
 List running processes
@@ -3244,6 +3275,7 @@ A CLI for out-of-band management of Kubernetes nodes created by Talos
 * [talosctl netstat](#talosctl-netstat)	 - Show network connections and sockets
 * [talosctl patch](#talosctl-patch)	 - Update field(s) of a resource using a JSON patch.
 * [talosctl pcap](#talosctl-pcap)	 - Capture the network packets from the node.
+* [talosctl ping](#talosctl-ping)	 - Ping a network host
 * [talosctl processes](#talosctl-processes)	 - List running processes
 * [talosctl read](#talosctl-read)	 - Read a file on the machine
 * [talosctl reboot](#talosctl-reboot)	 - Reboot a node

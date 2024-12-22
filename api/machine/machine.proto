@@ -95,6 +95,8 @@ service MachineService {
   rpc ImageList(ImageListRequest) returns (stream ImageListResponse);
   // ImagePull pulls an image into the CRI.
   rpc ImagePull(ImagePullRequest) returns (ImagePullResponse);
+  // Ping pings a network host and
+  rpc Ping(PingRequest) returns (stream common.Data);
 }
 
 // rpc applyConfiguration
@@ -1227,6 +1229,18 @@ message PacketCaptureRequest {
   uint32 snap_len = 3;
   // BPF filter.
   repeated BPFInstruction bpf_filter = 4;
+}
+
+// rpc Ping
+message PingRequest {
+  // Interface name to send ICMP packets from.
+  string interface = 1;
+  // Address to be pinged.
+  string address = 2;
+  // TTL for the ICMP packets.
+  uint32 ttl = 3;
+  // Interval between pings.
+  google.protobuf.Duration interval = 4;
 }
 
 message BPFInstruction {

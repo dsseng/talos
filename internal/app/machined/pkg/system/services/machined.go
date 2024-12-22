@@ -75,6 +75,7 @@ var rules = map[string]role.Set{
 	"/machine.MachineService/NetworkDeviceStats":          role.MakeSet(role.Admin, role.Operator, role.Reader),
 	"/machine.MachineService/Netstat":                     role.MakeSet(role.Admin, role.Operator, role.Reader),
 	"/machine.MachineService/PacketCapture":               role.MakeSet(role.Admin, role.Operator),
+	"/machine.MachineService/Ping":                        role.MakeSet(role.Admin, role.Operator),
 	"/machine.MachineService/Processes":                   role.MakeSet(role.Admin, role.Operator, role.Reader),
 	"/machine.MachineService/Read":                        role.MakeSet(role.Admin),
 	"/machine.MachineService/Reboot":                      role.MakeSet(role.Admin, role.Operator),

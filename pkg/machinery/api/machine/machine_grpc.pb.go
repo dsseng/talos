@@ -75,6 +75,7 @@ const (
 	MachineService_MetaDelete_FullMethodName                  = "/machine.MachineService/MetaDelete"
 	MachineService_ImageList_FullMethodName                   = "/machine.MachineService/ImageList"
 	MachineService_ImagePull_FullMethodName                   = "/machine.MachineService/ImagePull"
+	MachineService_Ping_FullMethodName                        = "/machine.MachineService/Ping"
 )
 
 // MachineServiceClient is the client API for MachineService service.
@@ -165,6 +166,8 @@ type MachineServiceClient interface {
 	ImageList(ctx context.Context, in *ImageListRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ImageListResponse], error)
 	// ImagePull pulls an image into the CRI.
 	ImagePull(ctx context.Context, in *ImagePullRequest, opts ...grpc.CallOption) (*ImagePullResponse, error)
+	// Ping pings a network host and
+	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[common.Data], error)
 }
 
 type machineServiceClient struct {
@@ -797,6 +800,25 @@ func (c *machineServiceClient) ImagePull(ctx context.Context, in *ImagePullReque
 	return out, nil
 }
 
+func (c *machineServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[common.Data], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &MachineService_ServiceDesc.Streams[12], MachineService_Ping_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[PingRequest, common.Data]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MachineService_PingClient = grpc.ServerStreamingClient[common.Data]
+
 // MachineServiceServer is the server API for MachineService service.
 // All implementations must embed UnimplementedMachineServiceServer
 // for forward compatibility.
@@ -885,6 +907,8 @@ type MachineServiceServer interface {
 	ImageList(*ImageListRequest, grpc.ServerStreamingServer[ImageListResponse]) error
 	// ImagePull pulls an image into the CRI.
 	ImagePull(context.Context, *ImagePullRequest) (*ImagePullResponse, error)
+	// Ping pings a network host and
+	Ping(*PingRequest, grpc.ServerStreamingServer[common.Data]) error
 	mustEmbedUnimplementedMachineServiceServer()
 }
 
@@ -1050,6 +1074,9 @@ func (UnimplementedMachineServiceServer) ImageList(*ImageListRequest, grpc.Serve
 }
 func (UnimplementedMachineServiceServer) ImagePull(context.Context, *ImagePullRequest) (*ImagePullResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ImagePull not implemented")
+}
+func (UnimplementedMachineServiceServer) Ping(*PingRequest, grpc.ServerStreamingServer[common.Data]) error {
+	return status.Errorf(codes.Unimplemented, "method Ping not implemented")
 }
 func (UnimplementedMachineServiceServer) mustEmbedUnimplementedMachineServiceServer() {}
 func (UnimplementedMachineServiceServer) testEmbeddedByValue()                        {}
@@ -1920,6 +1947,17 @@ func _MachineService_ImagePull_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MachineService_Ping_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(PingRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(MachineServiceServer).Ping(m, &grpc.GenericServerStream[PingRequest, common.Data]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MachineService_PingServer = grpc.ServerStreamingServer[common.Data]
+
 // MachineService_ServiceDesc is the grpc.ServiceDesc for MachineService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2147,6 +2185,11 @@ var MachineService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "ImageList",
 			Handler:       _MachineService_ImageList_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "Ping",
+			Handler:       _MachineService_Ping_Handler,
 			ServerStreams: true,
 		},
 	},

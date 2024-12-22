@@ -196,6 +196,8 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
+require github.com/prometheus-community/pro-bing v0.5.0
+
 require (
 	cel.dev/expr v0.18.0 // indirect
 	github.com/0x5a17ed/itkit v0.6.0 // indirect

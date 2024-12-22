@@ -117,7 +117,7 @@ type lineSlicer struct {
 	wg     sync.WaitGroup
 }
 
-func newLineSlicer(stream machine.MachineService_LogsClient) (chan *common.Data, chan error) {
+func newLineSlicer(stream grpc.ServerStreamingClient[common.Data]) (chan *common.Data, chan error) {
 	slicer := &lineSlicer{
 		respCh: make(chan *common.Data),
 		errCh:  make(chan error, 1),
@@ -171,7 +171,7 @@ func (slicer *lineSlicer) cleanupChoppers() {
 	slicer.wg.Wait()
 }
 
-func (slicer *lineSlicer) run(stream machine.MachineService_LogsClient) {
+func (slicer *lineSlicer) run(stream grpc.ServerStreamingClient[common.Data]) {
 	defer close(slicer.errCh)
 	defer close(slicer.respCh)
 

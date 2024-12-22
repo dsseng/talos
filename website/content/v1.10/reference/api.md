@@ -428,6 +428,7 @@ description: Talos gRPC API reference.
     - [NetworkDeviceStatsResponse](#machine.NetworkDeviceStatsResponse)
     - [PacketCaptureRequest](#machine.PacketCaptureRequest)
     - [PhaseEvent](#machine.PhaseEvent)
+    - [PingRequest](#machine.PingRequest)
     - [PlatformInfo](#machine.PlatformInfo)
     - [Process](#machine.Process)
     - [ProcessInfo](#machine.ProcessInfo)
@@ -7513,6 +7514,24 @@ The messages message containing the requested df stats.
 
 
 
+<a name="machine.PingRequest"></a>
+
+### PingRequest
+rpc Ping
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| interface | [string](#string) |  | Interface name to send ICMP packets from. |
+| address | [string](#string) |  | Address to be pinged. |
+| ttl | [uint32](#uint32) |  | TTL for the ICMP packets. |
+| interval | [google.protobuf.Duration](#google.protobuf.Duration) |  | Interval between pings. |
+
+
+
+
+
+
 <a name="machine.PlatformInfo"></a>
 
 ### PlatformInfo
@@ -8701,6 +8720,7 @@ The machine service definition.
 | MetaDelete | [MetaDeleteRequest](#machine.MetaDeleteRequest) | [MetaDeleteResponse](#machine.MetaDeleteResponse) | MetaDelete deletes a META key. |
 | ImageList | [ImageListRequest](#machine.ImageListRequest) | [ImageListResponse](#machine.ImageListResponse) stream | ImageList lists images in the CRI. |
 | ImagePull | [ImagePullRequest](#machine.ImagePullRequest) | [ImagePullResponse](#machine.ImagePullResponse) | ImagePull pulls an image into the CRI. |
+| Ping | [PingRequest](#machine.PingRequest) | [.common.Data](#common.Data) stream | Ping pings a network host and |
 
  <!-- end services -->
 
