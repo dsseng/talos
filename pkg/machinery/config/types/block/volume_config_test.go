@@ -448,6 +448,178 @@ func TestVolumeConfigValidate(t *testing.T) {
 			},
 		},
 		{
+			name: "tmpfs disallows disk selector",
+
+			cfg: func(t *testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.EphemeralPartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+
+				require.NoError(t, c.ProvisioningSpec.DiskSelectorSpec.Match.UnmarshalText([]byte(`system_disk`)))
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("3GiB")
+
+				return c
+			},
+
+			expectedErrors: "disk selector is not allowed for volumeType \"tmpfs\"",
+		},
+		{
+			name: "tmpfs requires max size",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.EphemeralPartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+
+				return c
+			},
+
+			expectedErrors: "size (provisioning.maxSize) is required for volumeType \"tmpfs\"",
+		},
+		{
+			name: "tmpfs disallows min size",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.EphemeralPartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+				c.ProvisioningSpec.ProvisioningMinSize = block.MustByteSize("3GiB")
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("4GiB")
+
+				return c
+			},
+
+			expectedErrors: "min size is not allowed for volumeType \"tmpfs\": memory is not reserved, use max size to limit the size of the volume",
+		},
+		{
+			name: "tmpfs requires absolute max size",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.EphemeralPartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("50%")
+
+				return c
+			},
+
+			expectedErrors: "size (provisioning.maxSize) must be an absolute size for volumeType \"tmpfs\"",
+		},
+		{
+			name: "tmpfs max size is bounded below",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.EphemeralPartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("1GiB")
+
+				return c
+			},
+
+			expectedErrors: "size (provisioning.maxSize) cannot be less than 2147483648 bytes for volumeType \"tmpfs\"",
+		},
+		{
+			name: "tmpfs disallows encryption",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.EphemeralPartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("3GiB")
+
+				c.EncryptionSpec.EncryptionProvider = blockres.EncryptionProviderLUKS2
+				c.EncryptionSpec.EncryptionKeys = []block.EncryptionKey{{
+					KeySlot: 0,
+					KeyStatic: &block.EncryptionKeyStatic{
+						KeyData: "topsecret",
+					},
+				}}
+
+				return c
+			},
+
+			expectedErrors: "encryption config is not allowed for volumeType \"tmpfs\"",
+		},
+		{
+			name: "tmpfs valid",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.EphemeralPartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("3GiB")
+
+				return c
+			},
+		},
+		{
+			name: "state tmpfs valid",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.StatePartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+
+				return c
+			},
+		},
+		{
+			name: "state tmpfs rejects provisioning",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.StatePartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("1GiB")
+
+				return c
+			},
+
+			expectedErrors: "provisioning config is not allowed for the \"STATE\" volume",
+		},
+		{
+			name: "state tmpfs rejects encryption",
+
+			cfg: func(*testing.T) *block.VolumeConfigV1Alpha1 {
+				c := block.NewVolumeConfigV1Alpha1()
+				c.MetaName = constants.StatePartitionLabel
+
+				vt := blockres.VolumeTypeTmpfs
+				c.VolumeType = &vt
+
+				c.EncryptionSpec.EncryptionProvider = blockres.EncryptionProviderLUKS2
+				c.EncryptionSpec.EncryptionKeys = []block.EncryptionKey{{
+					KeySlot: 0,
+					KeyStatic: &block.EncryptionKeyStatic{
+						KeyData: "topsecret",
+					},
+				}}
+
+				return c
+			},
+
+			expectedErrors: "encryption config is not allowed for volumeType \"tmpfs\"",
+		},
+		{
 			name: "valid",
 
 			cfg: func(t *testing.T) *block.VolumeConfigV1Alpha1 {

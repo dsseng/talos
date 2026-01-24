@@ -26,6 +26,7 @@ import (
 	"github.com/siderolabs/talos/pkg/machinery/config/types/v1alpha1"
 	"github.com/siderolabs/talos/pkg/machinery/config/validation"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/siderolabs/talos/pkg/machinery/imager/quirks"
 	"github.com/siderolabs/talos/pkg/machinery/resources/block"
 )
 
@@ -72,6 +73,12 @@ type VolumeConfigV1Alpha1 struct {
 	//   description: |
 	//     Name of the volume.
 	MetaName string `yaml:"name"`
+	//   description: |
+	//     Volume type.
+	//   values:
+	//     - tmpfs
+	//     - partition
+	VolumeType *VolumeType `yaml:"volumeType,omitempty"`
 	//   description: |
 	//     The provisioning describes how the volume is provisioned.
 	ProvisioningSpec ProvisioningSpec `yaml:"provisioning,omitempty"`
@@ -258,16 +265,32 @@ func (s *VolumeConfigV1Alpha1) Validate(validation.RuntimeMode, ...validation.Op
 
 	validationErrors = errors.Join(validationErrors, s.validateVolumeConstraints())
 
-	extraWarnings, extraErrors := s.ProvisioningSpec.Validate(false, true)
-	warnings = append(warnings, extraWarnings...)
-	validationErrors = errors.Join(validationErrors, extraErrors)
+	vtype := block.VolumeTypePartition
+	if s.VolumeType != nil {
+		vtype = *s.VolumeType
+	}
 
-	extraWarnings, extraErrors = s.EncryptionSpec.Validate()
-	warnings = append(warnings, extraWarnings...)
-	validationErrors = errors.Join(validationErrors, extraErrors)
+	switch vtype {
+	case block.VolumeTypePartition:
+		extraWarnings, extraErrors := s.ProvisioningSpec.Validate(false, true)
+		warnings = append(warnings, extraWarnings...)
+		validationErrors = errors.Join(validationErrors, extraErrors)
 
-	if err := s.TrimSpec.Validate(); err != nil {
-		validationErrors = errors.Join(validationErrors, err)
+		extraWarnings, extraErrors = s.EncryptionSpec.Validate()
+		warnings = append(warnings, extraWarnings...)
+		validationErrors = errors.Join(validationErrors, extraErrors)
+
+		if err := s.TrimSpec.Validate(); err != nil {
+			validationErrors = errors.Join(validationErrors, err)
+		}
+
+	case block.VolumeTypeTmpfs:
+		validationErrors = errors.Join(validationErrors, s.validateTmpfsVolume(vtype))
+
+	case block.VolumeTypeDisk, block.VolumeTypeDirectory, block.VolumeTypeSymlink, block.VolumeTypeOverlay, block.VolumeTypeExternal:
+		fallthrough
+	default:
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("unsupported volume type %q", vtype))
 	}
 
 	if err := s.ScrubSpec.Validate(); err != nil {
@@ -320,6 +343,54 @@ func (s *VolumeConfigV1Alpha1) validateVolumeConstraints() error {
 		if s.MountSpec != (MountSpec{}) && !ProvisioningRequested(s.Provisioning()) {
 			validationErrors = errors.Join(validationErrors, fmt.Errorf("mount config for the %q volume is only supported when it is provisioned onto a dedicated partition", s.MetaName))
 		}
+	}
+
+	return validationErrors
+}
+
+// validateTmpfsVolume validates the constraints specific to memory (tmpfs) volumes.
+func (s *VolumeConfigV1Alpha1) validateTmpfsVolume(vtype block.VolumeType) error {
+	var validationErrors error
+
+	// encryption is meaningless for a tmpfs-backed STATE.
+	if !s.EncryptionSpec.IsZero() {
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("encryption config is not allowed for volumeType %q", vtype))
+	}
+
+	switch s.MetaName {
+	case constants.StatePartitionLabel:
+		// nothing to validate: the size of the STATE tmpfs is fixed, and provisioning is rejected by validateVolumeConstraints
+
+	case constants.EphemeralPartitionLabel:
+		if !s.ProvisioningSpec.DiskSelectorSpec.Match.IsZero() {
+			validationErrors = errors.Join(validationErrors, fmt.Errorf("disk selector is not allowed for volumeType %q", vtype))
+		}
+
+		if s.ProvisioningSpec.ProvisioningGrow != nil {
+			validationErrors = errors.Join(validationErrors, fmt.Errorf("grow is not allowed for volumeType %q", vtype))
+		}
+
+		// tmpfs memory is allocated on demand and can't be reserved, so there is no minimum size,
+		// and the size of the volume is the limit it can grow to
+		if !s.ProvisioningSpec.ProvisioningMinSize.IsZero() {
+			validationErrors = errors.Join(validationErrors, fmt.Errorf("min size is not allowed for volumeType %q: memory is not reserved, use max size to limit the size of the volume", vtype))
+		}
+
+		q := quirks.New("")
+
+		switch maxSize := s.ProvisioningSpec.ProvisioningMaxSize; {
+		case maxSize.IsZero():
+			validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) is required for volumeType %q", vtype))
+		case maxSize.IsRelative() || maxSize.IsNegative():
+			validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) must be an absolute size for volumeType %q", vtype))
+		case maxSize.Value() < q.PartitionSizes().EphemeralMinSize():
+			validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) cannot be less than %d bytes for volumeType %q", q.PartitionSizes().EphemeralMinSize(), vtype))
+		}
+
+	case constants.BootPartitionLabel, constants.BIOSGrubPartitionLabel, constants.EFIPartitionLabel, constants.MetaPartitionLabel, constants.ImageCachePartitionLabel:
+		fallthrough
+	default:
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("volumeType %q is not allowed for the %q volume", vtype, s.MetaName))
 	}
 
 	return validationErrors
@@ -425,6 +496,15 @@ func (s *VolumeConfigV1Alpha1) Scrub() config.VolumeScrubConfig {
 	}
 
 	return s.ScrubSpec
+}
+
+// Type implements config.VolumeConfig interface.
+func (s *VolumeConfigV1Alpha1) Type() optional.Optional[block.VolumeType] {
+	if s.VolumeType == nil {
+		return optional.None[block.VolumeType]()
+	}
+
+	return optional.Some(*s.VolumeType)
 }
 
 // Validate the provisioning spec.

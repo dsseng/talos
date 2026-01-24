@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,7 @@ import (
 	blockcfg "github.com/siderolabs/talos/pkg/machinery/config/types/block"
 	"github.com/siderolabs/talos/pkg/machinery/config/types/v1alpha1"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/siderolabs/talos/pkg/machinery/imager/quirks"
 	"github.com/siderolabs/talos/pkg/machinery/meta"
 	"github.com/siderolabs/talos/pkg/machinery/resources/block"
 	"github.com/siderolabs/talos/pkg/machinery/resources/runtime"
@@ -247,6 +249,82 @@ func TestGetEphemeralVolumeTransformer(t *testing.T) {
 			tc.checkFunc(t, resources)
 		})
 	}
+}
+
+func TestMemorySystemVolumes(t *testing.T) {
+	t.Parallel()
+
+	memoryVolumeConfig := func(name string, mutate func(*blockcfg.VolumeConfigV1Alpha1)) *container.Container {
+		vc := blockcfg.NewVolumeConfigV1Alpha1()
+		vc.MetaName = name
+		vc.VolumeType = new(block.VolumeTypeTmpfs)
+
+		if mutate != nil {
+			mutate(vc)
+		}
+
+		cfg, err := container.New(baseCfg.DeepCopy(), vc)
+		require.NoError(t, err)
+
+		return cfg
+	}
+
+	sizeParameter := func(t *testing.T, vc *block.VolumeConfig) string {
+		t.Helper()
+
+		var sizes []string
+
+		for _, param := range vc.TypedSpec().Mount.Parameters {
+			if param.Name == "size" {
+				require.NotNil(t, param.String)
+
+				sizes = append(sizes, *param.String)
+			}
+		}
+
+		require.Len(t, sizes, 1, "exactly one size parameter expected")
+
+		return sizes[0]
+	}
+
+	t.Run("EPHEMERAL size is the max size", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := memoryVolumeConfig(constants.EphemeralPartitionLabel, func(vc *blockcfg.VolumeConfigV1Alpha1) {
+			vc.ProvisioningSpec.ProvisioningMaxSize = blockcfg.MustSize("3GiB")
+		})
+
+		resources, err := volumeconfig.GetEphemeralVolumeTransformer(false)(cfg)
+		require.NoError(t, err)
+		require.Len(t, resources, 1)
+
+		testTransformFunc(t, resources[0].TransformFunc, func(t *testing.T, vc *block.VolumeConfig, err error) {
+			require.NoError(t, err)
+
+			assert.Equal(t, block.VolumeTypeTmpfs, vc.TypedSpec().Type)
+			assert.Equal(t, constants.EphemeralMountPoint, vc.TypedSpec().Mount.TargetPath)
+			assert.Equal(t, strconv.FormatUint(3<<30, 10), sizeParameter(t, vc))
+
+			// nothing to provision or locate for a volume backed by memory
+			assert.Empty(t, vc.TypedSpec().Provisioning)
+			assert.True(t, vc.TypedSpec().Locator.Match.IsZero())
+		})
+	})
+
+	t.Run("EPHEMERAL without a size falls back to the minimum", func(t *testing.T) {
+		t.Parallel()
+
+		// validation requires the size, this is only about the transformer not producing an unlimited tmpfs
+		resources, err := volumeconfig.GetEphemeralVolumeTransformer(false)(memoryVolumeConfig(constants.EphemeralPartitionLabel, nil))
+		require.NoError(t, err)
+		require.Len(t, resources, 1)
+
+		testTransformFunc(t, resources[0].TransformFunc, func(t *testing.T, vc *block.VolumeConfig, err error) {
+			require.NoError(t, err)
+
+			assert.Equal(t, strconv.FormatUint(quirks.New("").PartitionSizes().EphemeralMinSize(), 10), sizeParameter(t, vc))
+		})
+	})
 }
 
 func TestStandardDirectoryVolumesTransformer(t *testing.T) {
