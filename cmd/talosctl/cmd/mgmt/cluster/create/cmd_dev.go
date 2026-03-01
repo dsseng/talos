@@ -179,6 +179,7 @@ func getCreateCmd(cmdName string, hidden bool) *cobra.Command {
 		addTalosVersionFlag(common, &cOps.TalosVersion, "the desired Talos version to generate config for")
 
 		common.StringVar(&cOps.NetworkCIDR, networkCIDRFlagName, cOps.NetworkCIDR, "CIDR of the cluster network (IPv4, ULA network for IPv6 is derived in automated way)")
+		common.StringVar(&cOps.NetworkCIDRv6, networkCIDRv6FlagName, "", "CIDR of the cluster network for IPv6 (optional, overrides automatic ULA derivation)")
 		common.StringVar(&cOps.WireguardCIDR, wireguardCIDRFlag, cOps.WireguardCIDR, "CIDR of the wireguard network")
 		common.BoolVar(&cOps.ApplyConfigEnabled, applyConfigEnabledFlag, cOps.ApplyConfigEnabled, "enable apply config when the VM is starting in maintenance mode")
 		common.StringSliceVar(&cOps.RegistryInsecure, registryInsecureFlag, cOps.RegistryInsecure, "list of registry hostnames to skip TLS verification for")
