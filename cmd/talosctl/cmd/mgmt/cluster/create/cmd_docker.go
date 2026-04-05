@@ -26,6 +26,8 @@ func init() {
 		dockerHostIPFlag      = "host-ip"
 		mountOptsFlag         = "mount"
 		subnetFlag            = "subnet"
+		subnetv6Flag          = "subnet-v6"
+		networkIPv6Flag       = "ipv6"
 	)
 
 	getDockerFlags := func() *pflag.FlagSet {
@@ -44,6 +46,8 @@ func init() {
 
 	commonFlags := getCommonUserFacingFlags(&cOps)
 	commonFlags.StringVar(&cOps.NetworkCIDR, subnetFlag, cOps.NetworkCIDR, "Docker network subnet CIDR")
+	commonFlags.StringVar(&cOps.NetworkCIDRv6, subnetv6Flag, cOps.NetworkCIDRv6, "Docker network IPv6 subnet CIDR")
+	commonFlags.BoolVar(&cOps.NetworkIPv6, networkIPv6Flag, cOps.NetworkIPv6, "enable IPv6 network in the cluster")
 
 	createDockerCmd := &cobra.Command{
 		Use:   "docker",

@@ -40,6 +40,7 @@ func (p *provisioner) Create(ctx context.Context, request provision.ClusterReque
 
 	fmt.Fprintln(options.LogWriter, "creating network", request.Network.Name)
 
+	fmt.Println("net", request.Network)
 	if err = p.createNetwork(ctx, request.Network); err != nil {
 		return nil, fmt.Errorf("unable to create or re-use a docker network: %w", err)
 	}
