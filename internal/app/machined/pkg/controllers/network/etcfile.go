@@ -146,8 +146,7 @@ func (ctrl *EtcFileController) Run(ctx context.Context, r controller.Runtime, lo
 			}
 		}
 
-		if resolverStatus != nil && hostDNSCfg != nil && !ctrl.V1Alpha1Mode.InContainer() {
-			// in container mode, keep the original resolv.conf to use the resolvers supplied by the container runtime
+		if resolverStatus != nil && hostDNSCfg != nil {
 			if err = safe.WriterModify(ctx, r, files.NewEtcFileSpec(files.NamespaceName, "resolv.conf"),
 				func(r *files.EtcFileSpec) error {
 					r.TypedSpec().Contents = renderResolvConf(
