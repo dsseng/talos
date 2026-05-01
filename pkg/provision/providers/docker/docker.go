@@ -17,6 +17,7 @@ import (
 	"github.com/siderolabs/talos/pkg/machinery/config/bundle"
 	"github.com/siderolabs/talos/pkg/machinery/config/generate"
 	"github.com/siderolabs/talos/pkg/machinery/config/types/v1alpha1"
+	"github.com/siderolabs/talos/pkg/machinery/constants"
 	"github.com/siderolabs/talos/pkg/machinery/nethelpers"
 	"github.com/siderolabs/talos/pkg/provision"
 )
@@ -116,15 +117,17 @@ func (p *provisioner) GetInClusterKubernetesControlPlaneEndpoint(networkReq prov
 }
 
 // GetExternalKubernetesControlPlaneEndpoint returns the Kubernetes control plane endpoint.
-func (p *provisioner) GetExternalKubernetesControlPlaneEndpoint(provision.NetworkRequest, int) string {
+func (p *provisioner) GetExternalKubernetesControlPlaneEndpoint(networkReq provision.NetworkRequest, controlPlanePort int) string {
 	// return a mapped to the localhost first container Kubernetes API endpoint.
-	return "https://" + nethelpers.JoinHostPort("127.0.0.1", p.mappedKubernetesPort)
+	// FIXME: only do this when IPv6 addresses are
+	return "https://" + nethelpers.JoinHostPort(networkReq.CIDRs[0].Addr().Next().Next().String(), controlPlanePort)
 }
 
 // GetTalosAPIEndpoints returns a list of Talos API endpoints.
-func (p *provisioner) GetTalosAPIEndpoints(provision.NetworkRequest) []string {
+func (p *provisioner) GetTalosAPIEndpoints(networkReq provision.NetworkRequest) []string {
 	// return a mapped to the localhost first container Talos API endpoint.
-	return []string{nethelpers.JoinHostPort("127.0.0.1", p.mappedTalosAPIPort)}
+	// FIXME: only do this when IPv6 addresses are
+	return []string{nethelpers.JoinHostPort(networkReq.CIDRs[0].Addr().Next().Next().String(), constants.ApidPort)}
 }
 
 // UserDiskName not implemented for docker.

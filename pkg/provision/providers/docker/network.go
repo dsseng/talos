@@ -33,31 +33,45 @@ func (p *provisioner) createNetwork(ctx context.Context, req provision.NetworkRe
 		return nil
 	}
 
-	ipv6 := true
-	fmt.Println("CIDRs", req.CIDRs)
+	ipv4 := false
+	ipv6 := false
+	ipamConfigs := []network.IPAMConfig{}
+
+	fmt.Println("cidrs", req.CIDRs)
+
+	for _, cidr := range req.CIDRs {
+		if cidr.Addr().Is4() {
+			ipv4 = true
+			fmt.Println("ipv4", ipv4)
+		} else if cidr.Addr().Is6() {
+			ipv6 = true
+			fmt.Println("ipv6", ipv6)
+		}
+
+		ipamConfigs = append(ipamConfigs, network.IPAMConfig{
+			Subnet: cidr,
+		})
+	}
+
 	// Create new net
 	options := client.NetworkCreateOptions{
 		Labels: map[string]string{
 			"talos.owned":        "true",
 			"talos.cluster.name": req.Name,
 		},
+		EnableIPv4: &ipv4,
 		EnableIPv6: &ipv6,
 		IPAM: &network.IPAM{
-			Config: []network.IPAMConfig{
-				{
-					Subnet: req.CIDRs[0],
-				},
-				{
-					Subnet: req.CIDRs[1],
-				},
-			},
+			Config: ipamConfigs,
 		},
 		Options: map[string]string{
 			"com.docker.network.driver.mtu": strconv.Itoa(req.MTU),
 			// No NAT, needs Docker 27
+			// TODO: needed?
 			"com.docker.network.bridge.gateway_mode_ipv6": "routed",
 		},
 	}
+	fmt.Println(options)
 
 	_, err = p.client.NetworkCreate(ctx, req.Name, options)
 

@@ -190,7 +190,8 @@ func (p *provisioner) createNode(ctx context.Context, clusterReq provision.Clust
 	}
 
 	if nodeReq.IPs != nil {
-		networkConfig.EndpointsConfig[clusterReq.Network.Name].IPAMConfig = &network.EndpointIPAMConfig{IPv4Address: nodeReq.IPs[0]}
+		// FIXME: detect address family
+		networkConfig.EndpointsConfig[clusterReq.Network.Name].IPAMConfig = &network.EndpointIPAMConfig{IPv6Address: nodeReq.IPs[0]}
 	}
 
 	// Create the container.
@@ -222,8 +223,13 @@ func (p *provisioner) createNode(ctx context.Context, clusterReq provision.Clust
 	if network, ok := info.Container.NetworkSettings.Networks[clusterReq.Network.Name]; ok {
 		ip := network.IPAddress
 
-		if ip.IsUnspecified() && network.IPAMConfig != nil {
-			ip = network.IPAMConfig.IPv4Address
+		// Will be invalid e.g. if IPv4 is disabled
+		if (ip.IsUnspecified() || !ip.IsValid()) && network.IPAMConfig != nil {
+			if network.IPAMConfig.IPv6Address.IsValid() {
+				ip = network.IPAMConfig.IPv6Address
+			} else if network.IPAMConfig.IPv4Address.IsValid() {
+				ip = network.IPAMConfig.IPv4Address
+			}
 		}
 
 		addr = ip
