@@ -435,6 +435,10 @@ func (ctrl *OperatorSpecController) newOperator(logger *zap.Logger, spec *networ
 		logger = logger.With(zap.String("operator", "lldp"))
 
 		return operator.NewLLDP(logger, spec.LinkName, spec.LLDP.LinkIndex, nil)
+	case network.OperatorNDP:
+		logger = logger.With(zap.String("operator", "ndp"))
+
+		return operator.NewNDP(logger, spec.LinkName)
 	default:
 		panic(fmt.Sprintf("unexpected operator %s", spec.Operator))
 	}

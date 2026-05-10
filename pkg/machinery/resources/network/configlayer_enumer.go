@@ -101,11 +101,11 @@ func (i *ConfigLayer) UnmarshalText(text []byte) error {
 	return err
 }
 
-const _OperatorName = "dhcp4dhcp6viplldp"
+const _OperatorName = "dhcp4dhcp6viplldpndp"
 
-var _OperatorIndex = [...]uint8{0, 5, 10, 13, 17}
+var _OperatorIndex = [...]uint8{0, 5, 10, 13, 17, 20}
 
-const _OperatorLowerName = "dhcp4dhcp6viplldp"
+const _OperatorLowerName = "dhcp4dhcp6viplldpndp"
 
 func (i Operator) String() string {
 	if i < 0 || i >= Operator(len(_OperatorIndex)-1) {
@@ -122,9 +122,10 @@ func _OperatorNoOp() {
 	_ = x[OperatorDHCP6-(1)]
 	_ = x[OperatorVIP-(2)]
 	_ = x[OperatorLLDP-(3)]
+	_ = x[OperatorNDP-(4)]
 }
 
-var _OperatorValues = []Operator{OperatorDHCP4, OperatorDHCP6, OperatorVIP, OperatorLLDP}
+var _OperatorValues = []Operator{OperatorDHCP4, OperatorDHCP6, OperatorVIP, OperatorLLDP, OperatorNDP}
 
 var _OperatorNameToValueMap = map[string]Operator{
 	_OperatorName[0:5]:        OperatorDHCP4,
@@ -135,6 +136,8 @@ var _OperatorNameToValueMap = map[string]Operator{
 	_OperatorLowerName[10:13]: OperatorVIP,
 	_OperatorName[13:17]:      OperatorLLDP,
 	_OperatorLowerName[13:17]: OperatorLLDP,
+	_OperatorName[17:20]:      OperatorNDP,
+	_OperatorLowerName[17:20]: OperatorNDP,
 }
 
 var _OperatorNames = []string{
@@ -142,6 +145,7 @@ var _OperatorNames = []string{
 	_OperatorName[5:10],
 	_OperatorName[10:13],
 	_OperatorName[13:17],
+	_OperatorName[17:20],
 }
 
 // OperatorString retrieves an enum value from the enum constants string name.

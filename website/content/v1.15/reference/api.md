@@ -6747,6 +6747,7 @@ NetworkOperator enumerates Talos network operators.
 | OPERATOR_DHCP6 | 1 |  |
 | OPERATOR_VIP | 2 |  |
 | OPERATOR_LLDP | 3 |  |
+| OPERATOR_NDP | 4 |  |
 
 
 

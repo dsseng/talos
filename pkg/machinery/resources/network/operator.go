@@ -15,4 +15,5 @@ const (
 	OperatorDHCP6                 // dhcp6
 	OperatorVIP                   // vip
 	OperatorLLDP                  // lldp
+	OperatorNDP                   // ndp
 )
