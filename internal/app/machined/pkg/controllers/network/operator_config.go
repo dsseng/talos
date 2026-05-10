@@ -330,6 +330,12 @@ func (ctrl *OperatorConfigController) Run(ctx context.Context, r controller.Runt
 								},
 								ConfigLayer: network.ConfigDefault,
 							})
+							// enable NDP operator on physical interfaces which don't have any explicit configuration and are not ignored
+							specs = append(specs, network.OperatorSpecSpec{
+								Operator:    network.OperatorNDP,
+								LinkName:    linkStatus.Metadata().ID(),
+								ConfigLayer: network.ConfigDefault,
+							})
 						}
 					}
 				}
