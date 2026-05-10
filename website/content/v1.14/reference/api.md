@@ -6230,6 +6230,7 @@ NetworkOperator enumerates Talos network operators.
 | OPERATOR_DHCP4 | 0 |  |
 | OPERATOR_DHCP6 | 1 |  |
 | OPERATOR_VIP | 2 |  |
+| OPERATOR_NDP | 3 |  |
 
 
 
