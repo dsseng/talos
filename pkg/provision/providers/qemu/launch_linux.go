@@ -192,6 +192,11 @@ func withNetworkContext(ctx context.Context, config *LaunchConfig, f func(config
 				return fmt.Errorf("failed to initialize iptables: %w", err)
 			}
 
+			ipt6, err := iptables.New(iptables.IPFamily(iptables.ProtocolIPv6))
+			if err != nil {
+				return fmt.Errorf("failed to initialize iptables: %w", err)
+			}
+
 			// don't masquerade traffic with "broadcast" destination from the VM
 			//
 			// no need to clean up the rule, as CNI drops the whole chain
@@ -200,7 +205,15 @@ func withNetworkContext(ctx context.Context, config *LaunchConfig, f func(config
 			}
 
 			for _, cidr := range config.Network.NoMasqueradeCIDRs {
-				if err = ipt.InsertUnique("nat", cniChain, 1, "--destination", cidr.String(), "-j", "ACCEPT"); err != nil {
+				table := ipt
+				if cidr.Addr().Is6() {
+					table = ipt6
+				}
+
+				if err = table.InsertUnique("nat", cniChain, 1, "--source", cidr.String(), "-j", "ACCEPT"); err != nil {
+					return fmt.Errorf("failed to insert iptables rule to allow non-masquerade traffic from cidr %q: %w", cidr.String(), err)
+				}
+				if err = table.InsertUnique("nat", cniChain, 1, "--destination", cidr.String(), "-j", "ACCEPT"); err != nil {
 					return fmt.Errorf("failed to insert iptables rule to allow non-masquerade traffic to cidr %q: %w", cidr.String(), err)
 				}
 			}
