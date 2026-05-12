@@ -149,6 +149,10 @@ func (p *Provisioner) CreateNetwork(ctx context.Context, state *provision.State,
 		return fmt.Errorf("error configuring DOCKER-USER chain: %w", err)
 	}
 
+	if err = p.allowNoMasqTraffic(state.BridgeName, network.NoMasqueradeCIDRs); err != nil {
+		return fmt.Errorf("error configuring CNI-ADMIN chain: %w", err)
+	}
+
 	// configure bridge interface with network chaos if flag is set
 	if network.NetworkChaos {
 		if err = p.configureNetworkChaos(network, state, options); err != nil {
@@ -200,6 +204,85 @@ func (p *Provisioner) dropBridgeTrafficRule(bridgeName string) error {
 
 	if err := ipt.DeleteIfExists("filter", "DOCKER-USER", "-i", bridgeName, "-o", bridgeName, "-j", "ACCEPT"); err != nil {
 		return fmt.Errorf("error deleting rule in DOCKER-USER chain: %w", err)
+	}
+
+	return nil
+}
+
+func (p *Provisioner) allowNoMasqTraffic(bridgeName string, cidrs []netip.Prefix) error {
+	ipt, err := iptables.New()
+	if err != nil {
+		return fmt.Errorf("error initializing iptables: %w", err)
+	}
+
+	ipt6, err := iptables.New(iptables.IPFamily(iptables.ProtocolIPv6))
+	if err != nil {
+		return fmt.Errorf("error initializing ip6tables: %w", err)
+	}
+
+	for _, table := range []*iptables.IPTables{ipt, ipt6} {
+		chainExists, err := table.ChainExists("filter", "CNI-ADMIN")
+		if err != nil {
+			return fmt.Errorf("error checking chain existence: %w", err)
+		}
+
+		if !chainExists {
+			if err = table.NewChain("filter", "CNI-ADMIN"); err != nil {
+				return fmt.Errorf("error creating CNI-ADMIN chain: %w", err)
+			}
+		}
+	}
+
+	for _, cidr := range cidrs {
+		table := ipt
+		if cidr.Addr().Is6() {
+			table = ipt6
+		}
+
+		if err := table.InsertUnique("filter", "CNI-ADMIN", 1, "-i", bridgeName, "--source", cidr.String(), "-j", "ACCEPT"); err != nil {
+			return fmt.Errorf("error inserting rule into CNI-ADMIN chain: %w", err)
+		}
+		// TODO: add an option to allow all ingress and not only conntrack
+		if err := table.InsertUnique("filter", "CNI-ADMIN", 1, "-o", bridgeName, "--destination", cidr.String(), "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"); err != nil {
+			return fmt.Errorf("error inserting rule into CNI-ADMIN chain: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (p *Provisioner) dropNoMasqTrafficRule(bridgeName string, cidrs []netip.Prefix) error {
+	ipt, err := iptables.New()
+	if err != nil {
+		return fmt.Errorf("error initializing iptables: %w", err)
+	}
+
+	ipt6, err := iptables.New(iptables.IPFamily(iptables.ProtocolIPv6))
+	if err != nil {
+		return fmt.Errorf("error initializing iptables: %w", err)
+	}
+
+	for _, cidr := range cidrs {
+		table := ipt
+		if cidr.Addr().Is6() {
+			table = ipt6
+		}
+
+		chainExists, err := table.ChainExists("filter", "CNI-ADMIN")
+		if err != nil {
+			return fmt.Errorf("error checking chain existence: %w", err)
+		}
+
+		if !chainExists {
+			continue
+		}
+
+		if err := table.DeleteIfExists("filter", "CNI-ADMIN", "-i", bridgeName, "--source", cidr.String(), "-j", "ACCEPT"); err != nil {
+			return fmt.Errorf("error inserting rule into CNI-ADMIN chain: %w", err)
+		}
+		if err := table.DeleteIfExists("filter", "CNI-ADMIN", "-o", bridgeName, "--destination", cidr.String(), "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"); err != nil {
+			return fmt.Errorf("error inserting rule into CNI-ADMIN chain: %w", err)
+		}
 	}
 
 	return nil
@@ -360,6 +443,10 @@ func (p *Provisioner) DestroyNetwork(state *provision.State) error {
 
 	if err = p.dropBridgeTrafficRule(state.BridgeName); err != nil {
 		return fmt.Errorf("error dropping bridge traffic rule: %w", err)
+	}
+
+	if err = p.dropNoMasqTrafficRule(state.BridgeName, state.ClusterInfo.Network.NoMasqueradeCIDRs); err != nil {
+		return fmt.Errorf("error dropping no-masquerade traffic rule: %w", err)
 	}
 
 	return nil
