@@ -7,9 +7,11 @@ package mgmt
 import (
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/siderolabs/gen/xiter"
 	"github.com/siderolabs/go-loadbalancer/loadbalancer"
+	"github.com/siderolabs/go-retry/retry"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -30,29 +32,35 @@ var loadbalancerLaunchCmd = &cobra.Command{
 	Args:   cobra.NoArgs,
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		lb := loadbalancer.TCP{Logger: makeLogger()}
+		return retry.Constant(
+			10*time.Minute,
+			retry.WithUnits(time.Second),
+		).Retry(func() error {
+			lb := loadbalancer.TCP{Logger: makeLogger()}
 
-		for _, port := range loadbalancerLaunchCmdFlags.ports {
-			if err := lb.AddRoute(
-				fmt.Sprintf("%s:%d", loadbalancerLaunchCmdFlags.addr, port),
-				xiter.Map(
-					func(upstream string) string {
-						return fmt.Sprintf("%s:%d", upstream, port)
-					},
-					slices.Values(loadbalancerLaunchCmdFlags.upstreams),
-				),
-			); err != nil {
-				return err
+			for _, port := range loadbalancerLaunchCmdFlags.ports {
+				if err := lb.AddRoute(
+					fmt.Sprintf("[%s]:%d", loadbalancerLaunchCmdFlags.addr, port),
+					xiter.Map(
+						func(upstream string) string {
+							return fmt.Sprintf("[%s]:%d", upstream, port)
+						},
+						slices.Values(loadbalancerLaunchCmdFlags.upstreams),
+					),
+				); err != nil {
+					return err
+				}
 			}
-		}
 
-		go func() {
-			<-cmd.Context().Done()
-			// Errors out only when already stopped.
-			lb.Close() //nolint:errcheck
-		}()
+			// FIXME: too many goroutines
+			go func() {
+				<-cmd.Context().Done()
+				// Errors out only when already stopped.
+				lb.Close() //nolint:errcheck
+			}()
 
-		return lb.Run()
+			return retry.ExpectedError(lb.Run())
+		})
 	},
 }
 
