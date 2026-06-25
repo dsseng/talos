@@ -28,3 +28,22 @@ apiVersion: v1alpha1
 kind: ZswapConfig
 maxPoolPercent: 25
 shrinkerEnabled: true
+---
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: LOG
+provisioning:
+  diskSelector:
+    match: disk.transport == 'nvme'
+  minSize: 1GB
+  maxSize: 1GB
+---
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: KUBELET
+provisioning:
+  diskSelector:
+    match: disk.transport == 'nvme'
+  minSize: 1GB
+  maxSize: 2GB
+---

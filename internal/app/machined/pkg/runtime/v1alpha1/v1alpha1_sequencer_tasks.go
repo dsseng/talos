@@ -17,6 +17,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -676,6 +677,8 @@ func UnmountPodMounts(runtime.Sequence, any) (runtime.TaskExecutionFunc, string)
 
 		rdr := bytes.NewReader(b)
 
+		var mountpoints []string
+
 		scanner := bufio.NewScanner(rdr)
 		for scanner.Scan() {
 			fields := strings.Fields(scanner.Text())
@@ -686,19 +689,39 @@ func UnmountPodMounts(runtime.Sequence, any) (runtime.TaskExecutionFunc, string)
 
 			mountpoint := fields[1]
 			if strings.HasPrefix(mountpoint, constants.EphemeralMountPoint+"/") {
-				logger.Printf("unmounting %s\n", mountpoint)
+				mountpoints = append(mountpoints, mountpoint)
+			}
+		}
 
-				if err = mountv3.SafeUnmount(ctx, logger.Printf, mountpoint, false, false); err != nil {
-					if errors.Is(err, syscall.EINVAL) {
-						log.Printf("ignoring unmount error %s: %v", mountpoint, err)
-					} else {
-						return fmt.Errorf("error unmounting %s: %w", mountpoint, err)
-					}
+		if err = scanner.Err(); err != nil {
+			return err
+		}
+
+		// Unmount the deepest paths first: pod/overlay submounts (e.g. under a dedicated
+		// /var/lib/kubelet or /var/lib/containerd system-volume partition) must be released before
+		// their parent mount, otherwise unmounting the dedicated mount point fails with EBUSY and
+		// leaves the EPHEMERAL teardown blocked.
+		slices.SortFunc(mountpoints, func(a, b string) int {
+			return strings.Count(b, "/") - strings.Count(a, "/")
+		})
+
+		var unmountErrors *multierror.Error
+
+		for _, mountpoint := range mountpoints {
+			logger.Printf("unmounting %s\n", mountpoint)
+
+			if err = mountv3.SafeUnmount(ctx, logger.Printf, mountpoint, false, false); err != nil {
+				if errors.Is(err, syscall.EINVAL) {
+					log.Printf("ignoring unmount error %s: %v", mountpoint, err)
+				} else {
+					// don't abort on a single busy mount: keep going so one failure doesn't leave
+					// the remaining (e.g. sibling or parent) mounts mounted.
+					unmountErrors = multierror.Append(unmountErrors, fmt.Errorf("error unmounting %s: %w", mountpoint, err))
 				}
 			}
 		}
 
-		return scanner.Err()
+		return unmountErrors.ErrorOrNil()
 	}, "unmountPodMounts"
 }
 

@@ -1,0 +1,28 @@
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: KUBELET
+provisioning:
+  minSize: 1GB
+  maxSize: 2GB
+---
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: CRI
+provisioning:
+  minSize: 1GB
+  maxSize: 2GB
+---
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: ETCD
+provisioning:
+  minSize: 1GB
+  maxSize: 2GB
+---
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: LOG
+provisioning:
+  minSize: 1GB
+  maxSize: 1GB
+---

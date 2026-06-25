@@ -8,12 +8,14 @@ package api
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/blang/semver/v4"
 	"github.com/cosi-project/runtime/pkg/safe"
 	"github.com/siderolabs/go-retry/retry"
+	"google.golang.org/grpc/codes"
 
 	"github.com/siderolabs/talos/internal/integration/base"
 	machineapi "github.com/siderolabs/talos/pkg/machinery/api/machine"
@@ -124,16 +126,16 @@ func (suite *EtcdSuite) TestLeaveCluster() {
 		}
 	}
 
-	stream, err := suite.Client.MachineClient.List(nodeCtx, &machineapi.ListRequest{Root: constants.EtcdDataPath})
+	// LeaveCluster nukes the etcd data in place; /var/lib/etcd itself remains (it may be a
+	// dedicated volume mount point), so assert the data (member directory) is gone rather than
+	// the whole path.
+	stream, err := suite.Client.MachineClient.List(nodeCtx, &machineapi.ListRequest{Root: filepath.Join(constants.EtcdDataPath, "member")})
 	suite.Require().NoError(err)
 
 	_, err = stream.Recv()
 	suite.Require().Error(err)
-
-	suite.Assert().EqualError(
-		err,
-		"rpc error: code = Unknown desc = lstat /var/lib/etcd: no such file or directory",
-	)
+	suite.Require().Equal(client.StatusCode(err), codes.Unknown)
+	suite.Require().Contains(client.Status(err).Message(), "no such file or directory")
 
 	// NB: Reboot the node so that it can rejoin the etcd cluster. This allows us
 	// to check the cluster health and catch any issues in rejoining.

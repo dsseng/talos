@@ -136,7 +136,7 @@ List of changes:
 DHCPv4 search domains are now applied to the resolver configuration.
 """
 
-[notes.EPHEMERAL]
+    [notes.EPHEMERAL]
         title = "noexec on EPHEMERAL (/var)"
         description = """\
 The EPHEMERAL volume (`/var`) is now mounted with `noexec` in addition to the existing `nosuid` and `nodev`,
@@ -157,6 +157,18 @@ mount:
 > NOTE: Setting `secure: false` will also disable `nosuid` and `nodev`, which may have security implications. Use with caution.
 
 Upgrade note: apply this `VolumeConfig` patch *before* upgrading, otherwise affected workloads will fail after the next reboot. Longhorn v2 (SPDK data engine) runs the data plane inside the instance manager process and is not affected.
+"""
+
+    [notes.systemVolumes]
+        title = "Dedicated System Volumes"
+        description = """\
+The `ETCD`, `CRI`, `KUBELET` and `LOG` system volumes (`/var/lib/etcd`, `/var/lib/containerd`,
+`/var/lib/kubelet` and `/var/log`) can now be placed on dedicated partitions via a `VolumeConfig`
+document with `provisioning` set (optionally encrypted). By default they remain directories under
+the `EPHEMERAL` volume.
+
+The backing (directory vs. dedicated partition) is fixed at cluster creation: switching an
+already-provisioned node between the two is rejected.
 """
 
     [notes.DoT]
