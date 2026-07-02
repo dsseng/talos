@@ -398,7 +398,7 @@ func (ctrl *FSScrubController) updateSchedule(ctx context.Context, r controller.
 			stop:       cancel,
 		}
 
-		logger.Warn("scrub schedule", zap.String("mountpoint", mountpoint), zap.Duration("period", period), zap.Time("startTime", scheduledTask.StartTime))
+		logger.Info("scrub schedule", zap.String("mountpoint", mountpoint), zap.Duration("period", period), zap.Time("startTime", scheduledTask.StartTime))
 
 		ctrl.status[mountpoint] = scrubStatus{
 			id:         item.Metadata().ID(),
@@ -410,7 +410,7 @@ func (ctrl *FSScrubController) updateSchedule(ctx context.Context, r controller.
 		}
 	}
 
-	return err
+	return nil
 }
 
 // handleTeardown stops scrubbing when a volume enters the teardown phase and
@@ -491,16 +491,16 @@ func (ctrl *FSScrubController) createScrubTask(ctx context.Context, logger *zap.
 			return fmt.Errorf("error adding finalizer: %w", err)
 		}
 
-		logger.Warn("added finalizer to mount status", zap.String("mountpoint", mountpoint), zap.String("finalizer", ctrl.Name()))
+		logger.Info("added finalizer to mount status", zap.String("mountpoint", mountpoint), zap.String("finalizer", ctrl.Name()))
 	}
 
-	logger.Warn("creating scrub task", zap.String("task", ctrl.status[mountpoint].id), zap.String("mountpoint", mountpoint))
+	logger.Info("creating scrub task", zap.String("task", ctrl.status[mountpoint].id), zap.String("mountpoint", mountpoint))
 
 	ctrl.tasks[mountpoint] = scrubTask{
 		Args: args,
 	}
 
-	return err
+	return nil
 }
 
 func (ctrl *FSScrubController) getMountStatus(ctx context.Context, r controller.Runtime, mountpoint string) (*block.MountStatus, error) {

@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -124,7 +125,7 @@ func (ctrl *TasksController) Run(ctx context.Context, r controller.Runtime, logg
 		case <-r.EventCh():
 		}
 
-		logger.Warn("task controller loop")
+		logger.Debug("task controller loop")
 
 		cfg, err := safe.ReaderListAll[*runtimeres.Task](ctx, r)
 		if err != nil && !state.IsNotFoundError(err) {
@@ -139,7 +140,7 @@ func (ctrl *TasksController) Run(ctx context.Context, r controller.Runtime, logg
 
 			spec := taskspec.TypedSpec()
 			if _, ok := ctrl.Tasks[spec.ID]; !ok || ctrl.Tasks[spec.ID].state == runtimeres.TaskStateCreated {
-				logger.Warn("creating a task or updating created and not ran task", zap.String("id", spec.ID))
+				logger.Info("creating a task or updating created and not ran task", zap.String("id", spec.ID))
 				ctrl.Tasks[spec.ID] = task{
 					args:         spec.Args,
 					selinuxLabel: spec.SelinuxLabel,
@@ -150,7 +151,7 @@ func (ctrl *TasksController) Run(ctx context.Context, r controller.Runtime, logg
 					stop:         make(chan any),
 				}
 			} else {
-				logger.Warn("task updated while running", zap.String("task", spec.ID))
+				logger.Info("task updated while running", zap.String("task", spec.ID))
 			}
 		}
 
@@ -161,7 +162,7 @@ func (ctrl *TasksController) Run(ctx context.Context, r controller.Runtime, logg
 				(err == nil && res.Metadata().Phase() == resource.PhaseTearingDown)
 
 			if removing {
-				logger.Warn("Task removed or tearing down, stopping", zap.String("id", id))
+				logger.Info("task removed or tearing down, stopping", zap.String("id", id))
 				t := ctrl.Tasks[id]
 
 				if t.stop != nil {
@@ -192,7 +193,7 @@ func (ctrl *TasksController) Run(ctx context.Context, r controller.Runtime, logg
 			task := ctrl.Tasks[id]
 			if task.state == runtimeres.TaskStateCreated {
 				// run the task
-				logger.Warn("running task", zap.String("id", id))
+				logger.Info("running task", zap.String("id", id))
 
 				task.state = runtimeres.TaskStateRunning
 				task.startTime = time.Now()
@@ -218,15 +219,13 @@ func (ctrl *TasksController) Run(ctx context.Context, r controller.Runtime, logg
 				go (func() {
 					<-task.stop
 
-					fmt.Println("STOPPING")
-
 					if err := taskRunner.Stop(); err != nil {
-						logger.Error("Failed to stop task", zap.Error(err))
+						logger.Error("failed to stop task", zap.Error(err))
 					}
 
 					ctrl.CompleteCh <- taskCompletion{
 						ID:       id,
-						err:      fmt.Errorf("Canceled"),
+						err:      errors.New("canceled"),
 						exitTime: time.Now(),
 					}
 				})()
