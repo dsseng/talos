@@ -18,18 +18,25 @@ import (
 // FSScrubStatusType is type of FSScrubStatus resource.
 const FSScrubStatusType = resource.Type("FSScrubStatuses.block.talos.dev")
 
-// FSScrubStatus resource holds status of watchdog timer.
+// FSScrubStatus resource holds the result of the most recent filesystem scrub of a volume.
+//
+// The resource ID is the volume ID.
 type FSScrubStatus = typed.Resource[FSScrubStatusSpec, FSScrubStatusExtension]
 
 // FSScrubStatusSpec describes status of filesystem scrub jobs.
 //
 //gotagsrewrite:gen
 type FSScrubStatusSpec struct {
-	Mountpoint string        `yaml:"mountpoint" protobuf:"1"`
-	Period     time.Duration `yaml:"period" protobuf:"2"`
-	Time       time.Time     `yaml:"time" protobuf:"3"`
-	Duration   time.Duration `yaml:"duration" protobuf:"4"`
-	Status     string        `yaml:"status" protobuf:"5"`
+	// Mountpoint of the filesystem which was scrubbed.
+	Mountpoint string `yaml:"mountpoint" protobuf:"1"`
+	// Period is the scrub period for the volume.
+	Period time.Duration `yaml:"period" protobuf:"2"`
+	// Time is the start time of the most recent scrub.
+	Time time.Time `yaml:"time" protobuf:"3"`
+	// Duration of the most recent scrub.
+	Duration time.Duration `yaml:"duration" protobuf:"4"`
+	// Status is the result of the most recent scrub ("success" or an error message).
+	Status string `yaml:"status" protobuf:"5"`
 }
 
 // NewFSScrubStatus initializes a FSScrubStatus resource.

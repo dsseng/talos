@@ -280,6 +280,13 @@
           "description": "The trim describes the per-volume filesystem trim (fstrim) configuration.\n",
           "markdownDescription": "The trim describes the per-volume filesystem trim (fstrim) configuration.",
           "x-intellij-html-description": "\u003cp\u003eThe trim describes the per-volume filesystem trim (fstrim) configuration.\u003c/p\u003e\n"
+        },
+        "scrub": {
+          "$ref": "#/$defs/block.ScrubConfig",
+          "title": "scrub",
+          "description": "The scrub describes the per-volume filesystem scrub configuration.\n",
+          "markdownDescription": "The scrub describes the per-volume filesystem scrub configuration.",
+          "x-intellij-html-description": "\u003cp\u003eThe scrub describes the per-volume filesystem scrub configuration.\u003c/p\u003e\n"
         }
       },
       "additionalProperties": false,
@@ -377,7 +384,7 @@
       ],
       "description": "ExternalVolumeConfig is an external disk mount configuration document.\\nExternal volumes allow to mount volumes that were created outside of Talos,\\nover the network or API. Volume will be mounted under `/var/mnt/\u003cname\u003e`.\\nThe external volume config name should not conflict with user volume names.\\n"
     },
-    "block.FilesystemScrubV1Alpha1": {
+    "block.FilesystemScrubConfigV1Alpha1": {
       "properties": {
         "apiVersion": {
           "enum": [
@@ -397,27 +404,20 @@
           "markdownDescription": "kind is the kind of the resource.",
           "x-intellij-html-description": "\u003cp\u003ekind is the kind of the resource.\u003c/p\u003e\n"
         },
-        "name": {
-          "type": "string",
-          "title": "name",
-          "description": "Name of the config document.\n",
-          "markdownDescription": "Name of the config document.",
-          "x-intellij-html-description": "\u003cp\u003eName of the config document.\u003c/p\u003e\n"
-        },
-        "mountpoint": {
-          "type": "string",
-          "title": "mountpoint",
-          "description": "Mountpoint of the filesystem to be scrubbed.\n",
-          "markdownDescription": "Mountpoint of the filesystem to be scrubbed.",
-          "x-intellij-html-description": "\u003cp\u003eMountpoint of the filesystem to be scrubbed.\u003c/p\u003e\n"
+        "enabled": {
+          "type": "boolean",
+          "title": "enabled",
+          "description": "Enable or disable periodic filesystem scrubbing.\n\nIf not set, scrubbing is enabled by default.\n",
+          "markdownDescription": "Enable or disable periodic filesystem scrubbing.\n\nIf not set, scrubbing is enabled by default.",
+          "x-intellij-html-description": "\u003cp\u003eEnable or disable periodic filesystem scrubbing.\u003c/p\u003e\n\n\u003cp\u003eIf not set, scrubbing is enabled by default.\u003c/p\u003e\n"
         },
         "period": {
           "type": "string",
           "pattern": "^[-+]?(((\\d+(\\.\\d*)?|\\d*(\\.\\d+)+)([nuµm]?s|m|h))|0)+$",
           "title": "period",
-          "description": "Period for running the scrub task for this filesystem.\n\nThe first run is scheduled deterministically (hashed by mountpoint) within this period from the boot time, later ones follow after the full period.\n\nDefault value is 1 week, minimum value is 10 seconds.\n",
-          "markdownDescription": "Period for running the scrub task for this filesystem.\n\nThe first run is scheduled deterministically (hashed by mountpoint) within this period from the boot time, later ones follow after the full period.\n\nDefault value is 1 week, minimum value is 10 seconds.",
-          "x-intellij-html-description": "\u003cp\u003ePeriod for running the scrub task for this filesystem.\u003c/p\u003e\n\n\u003cp\u003eThe first run is scheduled deterministically (hashed by mountpoint) within this period from the boot time, later ones follow after the full period.\u003c/p\u003e\n\n\u003cp\u003eDefault value is 1 week, minimum value is 10 seconds.\u003c/p\u003e\n"
+          "description": "The period at which the filesystems are scrubbed.\n\nDefault value is 1 week, minimum value is 10 seconds.\n",
+          "markdownDescription": "The period at which the filesystems are scrubbed.\n\nDefault value is 1 week, minimum value is 10 seconds.",
+          "x-intellij-html-description": "\u003cp\u003eThe period at which the filesystems are scrubbed.\u003c/p\u003e\n\n\u003cp\u003eDefault value is 1 week, minimum value is 10 seconds.\u003c/p\u003e\n"
         }
       },
       "additionalProperties": false,
@@ -426,7 +426,7 @@
         "apiVersion",
         "kind"
       ],
-      "description": "FilesystemScrubConfig is a filesystem scrubbing config document."
+      "description": "FilesystemScrubConfig is a filesystem scrub configuration document.\\nFilesystem scrub periodically checks mounted filesystems which support online scrubbing\\n(currently XFS, via `xfs_scrub`) for metadata errors.\\n\\nScrubbing is enabled by default with a period of one week; this document adjusts the default\\nperiod or disables scrubbing globally. Individual volumes can override the global settings\\nvia the `scrub` section of the volume configuration.\\n\\nEach volume is scrubbed at a stable, hash-derived time within the period, which is different\\nfor each volume and each node, so that scrubs are spread out over time.\\n"
     },
     "block.FilesystemSpec": {
       "properties": {
@@ -596,6 +596,28 @@
       ],
       "description": "RawVolumeConfig is a raw volume configuration document.\\nRaw volumes allow to create partitions without formatting them.\\n If you want to use local storage, user volumes is a better choice,\\n raw volumes are intended to be used with CSI provisioners.\\nThe partition label is automatically generated as `r-\u003cname\u003e`.\\n"
     },
+    "block.ScrubConfig": {
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "title": "enabled",
+          "description": "Enable or disable scrubbing for this volume.\n\nIf not set, scrubbing is enabled by default.\n",
+          "markdownDescription": "Enable or disable scrubbing for this volume.\n\nIf not set, scrubbing is enabled by default.",
+          "x-intellij-html-description": "\u003cp\u003eEnable or disable scrubbing for this volume.\u003c/p\u003e\n\n\u003cp\u003eIf not set, scrubbing is enabled by default.\u003c/p\u003e\n"
+        },
+        "period": {
+          "type": "string",
+          "pattern": "^[-+]?(((\\d+(\\.\\d*)?|\\d*(\\.\\d+)+)([nuµm]?s|m|h))|0)+$",
+          "title": "period",
+          "description": "The period at which the volume is scrubbed, overriding the global scrub period.\n",
+          "markdownDescription": "The period at which the volume is scrubbed, overriding the global scrub period.",
+          "x-intellij-html-description": "\u003cp\u003eThe period at which the volume is scrubbed, overriding the global scrub period.\u003c/p\u003e\n"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "ScrubConfig describes per-volume filesystem scrub configuration.\\n\\nIt overrides the global FilesystemScrubConfig for the volume.\\n"
+    },
     "block.SwapVolumeConfigV1Alpha1": {
       "properties": {
         "apiVersion": {
@@ -761,6 +783,13 @@
           "description": "The trim describes the per-volume filesystem trim (fstrim) configuration.\n",
           "markdownDescription": "The trim describes the per-volume filesystem trim (fstrim) configuration.",
           "x-intellij-html-description": "\u003cp\u003eThe trim describes the per-volume filesystem trim (fstrim) configuration.\u003c/p\u003e\n"
+        },
+        "scrub": {
+          "$ref": "#/$defs/block.ScrubConfig",
+          "title": "scrub",
+          "description": "The scrub describes the per-volume filesystem scrub configuration.\n",
+          "markdownDescription": "The scrub describes the per-volume filesystem scrub configuration.",
+          "x-intellij-html-description": "\u003cp\u003eThe scrub describes the per-volume filesystem scrub configuration.\u003c/p\u003e\n"
         }
       },
       "additionalProperties": false,
@@ -839,6 +868,13 @@
           "description": "The trim describes the per-volume filesystem trim (fstrim) configuration.\n",
           "markdownDescription": "The trim describes the per-volume filesystem trim (fstrim) configuration.",
           "x-intellij-html-description": "\u003cp\u003eThe trim describes the per-volume filesystem trim (fstrim) configuration.\u003c/p\u003e\n"
+        },
+        "scrub": {
+          "$ref": "#/$defs/block.ScrubConfig",
+          "title": "scrub",
+          "description": "The scrub describes the per-volume filesystem scrub configuration.\n",
+          "markdownDescription": "The scrub describes the per-volume filesystem scrub configuration.",
+          "x-intellij-html-description": "\u003cp\u003eThe scrub describes the per-volume filesystem scrub configuration.\u003c/p\u003e\n"
         }
       },
       "additionalProperties": false,
@@ -6641,7 +6677,7 @@
       "$ref": "#/$defs/block.FilesystemTrimConfigV1Alpha1"
     },
     {
-      "$ref": "#/$defs/block.FilesystemScrubV1Alpha1"
+      "$ref": "#/$defs/block.FilesystemScrubConfigV1Alpha1"
     },
     {
       "$ref": "#/$defs/block.RawVolumeConfigV1Alpha1"

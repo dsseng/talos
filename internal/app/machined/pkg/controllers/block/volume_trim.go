@@ -147,8 +147,8 @@ func (ctrl *VolumeTrimController) Run(ctx context.Context, r controller.Runtime,
 			// runner does not need to recompute the (node-salted) schedule hash itself.
 			anchor := schedule.TypedSpec().NextTrim
 
-			currentSlot := block.TrimSlotBefore(anchor, interval, now)
-			nextSlot := block.TrimSlotAfter(anchor, interval, now)
+			currentSlot := block.ScheduleSlotBefore(anchor, interval, now)
+			nextSlot := block.ScheduleSlotAfter(anchor, interval, now)
 
 			if earliestNext.IsZero() || nextSlot.Before(earliestNext) {
 				earliestNext = nextSlot
@@ -245,7 +245,8 @@ func (ctrl *VolumeTrimController) trim(ctx context.Context, r controller.Runtime
 		return fmt.Errorf("failed to trim mount %q: %w", mountStatus.Metadata().ID(), err)
 	}
 
-	logger.Info("trimmed volume",
+	logger.Info(
+		"trimmed volume",
 		zap.String("volume", volumeID),
 		zap.String("target", target),
 		zap.String("trimmed", humanize.Bytes(trimmed)),

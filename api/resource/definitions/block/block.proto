@@ -127,26 +127,27 @@ message EncryptionSpec {
   bool allow_discards = 7;
 }
 
-// FSScrubConfigSpec describes configuration of periodic filesystem scrubbing.
-message FSScrubConfigSpec {
-  string name = 1;
-  string mountpoint = 2;
-  google.protobuf.Duration period = 3;
-}
-
-// FSScrubScheduleSpec describes scheduled filesystem scrubbing jobs.
+// FSScrubScheduleSpec is the spec for FSScrubSchedule resource.
 message FSScrubScheduleSpec {
-  string mountpoint = 1;
+  // Filesystem is the filesystem type of the volume to be scrubbed.
+  talos.resource.definitions.enums.BlockFilesystemType filesystem = 1;
+  // Period is the scrub period for the volume.
   google.protobuf.Duration period = 2;
-  google.protobuf.Timestamp start_time = 3;
+  // NextScrub is the next scheduled scrub time for the volume.
+  google.protobuf.Timestamp next_scrub = 3;
 }
 
 // FSScrubStatusSpec describes status of filesystem scrub jobs.
 message FSScrubStatusSpec {
+  // Mountpoint of the filesystem which was scrubbed.
   string mountpoint = 1;
+  // Period is the scrub period for the volume.
   google.protobuf.Duration period = 2;
+  // Time is the start time of the most recent scrub.
   google.protobuf.Timestamp time = 3;
+  // Duration of the most recent scrub.
   google.protobuf.Duration duration = 4;
+  // Status is the result of the most recent scrub ("success" or an error message).
   string status = 5;
 }
 
@@ -323,6 +324,10 @@ message VolumeConfigSpec {
   bool trim_enabled = 8;
   // TrimInterval is the resolved interval at which the volume should be trimmed.
   google.protobuf.Duration trim_interval = 9;
+  // ScrubEnabled indicates whether the volume filesystem should be scrubbed on a schedule.
+  bool scrub_enabled = 10;
+  // ScrubPeriod is the resolved period at which the volume filesystem should be scrubbed.
+  google.protobuf.Duration scrub_period = 11;
 }
 
 // VolumeMountRequestSpec is the spec for VolumeMountRequest.
@@ -388,6 +393,10 @@ message VolumeStatusSpec {
   bool trim_enabled = 24;
   // TrimInterval is the resolved interval at which the volume should be trimmed.
   google.protobuf.Duration trim_interval = 25;
+  // ScrubEnabled indicates whether the volume filesystem should be scrubbed on a schedule.
+  bool scrub_enabled = 26;
+  // ScrubPeriod is the resolved period at which the volume filesystem should be scrubbed.
+  google.protobuf.Duration scrub_period = 27;
 }
 
 // VolumeTrimScheduleSpec is the spec for VolumeTrimSchedule resource.

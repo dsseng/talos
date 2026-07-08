@@ -1,5 +1,15 @@
 ---
-description: FilesystemScrubConfig is a filesystem scrubbing config document.
+description: |
+    FilesystemScrubConfig is a filesystem scrub configuration document.
+    Filesystem scrub periodically checks mounted filesystems which support online scrubbing
+    (currently XFS, via `xfs_scrub`) for metadata errors.
+
+    Scrubbing is enabled by default with a period of one week; this document adjusts the default
+    period or disables scrubbing globally. Individual volumes can override the global settings
+    via the `scrub` section of the volume configuration.
+
+    Each volume is scrubbed at a stable, hash-derived time within the period, which is different
+    for each volume and each node, so that scrubs are spread out over time.
 title: FilesystemScrubConfig
 ---
 
@@ -16,19 +26,14 @@ title: FilesystemScrubConfig
 {{< highlight yaml >}}
 apiVersion: v1alpha1
 kind: FilesystemScrubConfig
-name: var # Name of the config document.
-mountpoint: /var # Mountpoint of the filesystem to be scrubbed.
-period: 168h0m0s # Period for running the scrub task for this filesystem.
+period: 168h0m0s # The period at which the filesystems are scrubbed.
 {{< /highlight >}}
 
 
 | Field | Type | Description | Value(s) |
 |-------|------|-------------|----------|
-|`name` |string |Name of the config document.  | |
-|`mountpoint` |string |Mountpoint of the filesystem to be scrubbed. <details><summary>Show example(s)</summary>{{< highlight yaml >}}
-mountpoint: /var
-{{< /highlight >}}</details> | |
-|`period` |Duration |Period for running the scrub task for this filesystem.<br><br>The first run is scheduled deterministically (hashed by mountpoint) within this period from the boot time, later ones follow after the full period.<br><br>Default value is 1 week, minimum value is 10 seconds.  | |
+|`enabled` |bool |Enable or disable periodic filesystem scrubbing.<br><br>If not set, scrubbing is enabled by default.  | |
+|`period` |Duration |The period at which the filesystems are scrubbed.<br><br>Default value is 1 week, minimum value is 10 seconds.  | |
 
 
 

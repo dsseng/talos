@@ -215,7 +215,6 @@ func (ctrl *Controller) Run(ctx context.Context, drainer *runtime.Drainer) error
 			V1Alpha1Mode: ctrl.v1alpha1Runtime.State().Platform().Mode(),
 			MD:           mdProvisioner,
 		},
-		&block.FSScrubConfigController{},
 		&block.FSScrubScheduleController{},
 		&block.FSScrubController{
 			Runtime: ctrl.v1alpha1Runtime,
@@ -524,9 +523,6 @@ func (ctrl *Controller) Run(ctx context.Context, drainer *runtime.Drainer) error
 		},
 		&runtimecontrollers.UniqueMachineTokenController{},
 		&runtimecontrollers.VersionController{},
-		&runtimecontrollers.TasksController{
-			Runtime: ctrl.v1alpha1Runtime,
-		},
 		&runtimecontrollers.WatchdogTimerConfigController{},
 		&runtimecontrollers.WatchdogTimerController{},
 		&runtimecontrollers.OOMController{

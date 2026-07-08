@@ -8,23 +8,25 @@ package block
 
 import (
 	"fmt"
-	"net/url"
 	"time"
+
+	"github.com/siderolabs/gen/optional"
 
 	"github.com/siderolabs/talos/pkg/machinery/config/config"
 	"github.com/siderolabs/talos/pkg/machinery/config/internal/registry"
 	"github.com/siderolabs/talos/pkg/machinery/config/types/meta"
 	"github.com/siderolabs/talos/pkg/machinery/config/validation"
+	"github.com/siderolabs/talos/pkg/machinery/constants"
 )
 
-// FilesystemScrubKind is a watchdog timer config document kind.
-const FilesystemScrubKind = "FilesystemScrubConfig"
+// FilesystemScrubConfigKind is a filesystem scrub config document kind.
+const FilesystemScrubConfigKind = "FilesystemScrubConfig"
 
 func init() {
-	registry.Register(FilesystemScrubKind, func(version string) config.Document {
+	registry.Register(FilesystemScrubConfigKind, func(version string) config.Document {
 		switch version {
 		case "v1alpha1": //nolint:goconst
-			return &FilesystemScrubV1Alpha1{}
+			return &FilesystemScrubConfigV1Alpha1{}
 		default:
 			return nil
 		}
@@ -33,40 +35,40 @@ func init() {
 
 // Check interfaces.
 var (
-	_ config.FilesystemScrubConfig = &FilesystemScrubV1Alpha1{}
-	_ config.NamedDocument         = &FilesystemScrubV1Alpha1{}
-	_ config.Validator             = &FilesystemScrubV1Alpha1{}
+	_ config.FilesystemScrubConfig = &FilesystemScrubConfigV1Alpha1{}
+	_ config.Validator             = &FilesystemScrubConfigV1Alpha1{}
 )
 
-// Timeout constants.
-const (
-	MinScrubPeriod     = 10 * time.Second
-	DefaultScrubPeriod = 24 * 7 * time.Hour
-)
+// MinScrubPeriod is the minimum allowed scrub period.
+const MinScrubPeriod = 10 * time.Second
 
-// FilesystemScrubV1Alpha1 is a filesystem scrubbing config document.
+// FilesystemScrubConfigV1Alpha1 is a filesystem scrub configuration document.
 //
+//	description: |
+//	  Filesystem scrub periodically checks mounted filesystems which support online scrubbing
+//	  (currently XFS, via `xfs_scrub`) for metadata errors.
+//
+//	  Scrubbing is enabled by default with a period of one week; this document adjusts the default
+//	  period or disables scrubbing globally. Individual volumes can override the global settings
+//	  via the `scrub` section of the volume configuration.
+//
+//	  Each volume is scrubbed at a stable, hash-derived time within the period, which is different
+//	  for each volume and each node, so that scrubs are spread out over time.
 //	examples:
-//	  - value: exampleFilesystemScrubV1Alpha1()
+//	  - value: exampleFilesystemScrubConfigV1Alpha1()
 //	alias: FilesystemScrubConfig
 //	schemaRoot: true
 //	schemaMeta: v1alpha1/FilesystemScrubConfig
-type FilesystemScrubV1Alpha1 struct {
+type FilesystemScrubConfigV1Alpha1 struct {
 	meta.Meta `yaml:",inline"`
 
 	//   description: |
-	//     Name of the config document.
-	MetaName string `yaml:"name"`
-	//   description: |
-	//     Mountpoint of the filesystem to be scrubbed.
-	//   examples:
-	//     - value: >
-	//        "/var"
-	FSMountpoint string `yaml:"mountpoint"`
-	//   description: |
-	//     Period for running the scrub task for this filesystem.
+	//     Enable or disable periodic filesystem scrubbing.
 	//
-	//     The first run is scheduled deterministically (hashed by mountpoint) within this period from the boot time, later ones follow after the full period.
+	//     If not set, scrubbing is enabled by default.
+	ScrubEnabled *bool `yaml:"enabled,omitempty"`
+	//   description: |
+	//     The period at which the filesystems are scrubbed.
 	//
 	//     Default value is 1 week, minimum value is 10 seconds.
 	//   schema:
@@ -75,87 +77,54 @@ type FilesystemScrubV1Alpha1 struct {
 	ScrubPeriod time.Duration `yaml:"period,omitempty"`
 }
 
-// NewFilesystemScrubV1Alpha1 creates a new eventsink config document.
-func NewFilesystemScrubV1Alpha1() *FilesystemScrubV1Alpha1 {
-	return &FilesystemScrubV1Alpha1{
+// NewFilesystemScrubConfigV1Alpha1 creates a new filesystem scrub config document.
+func NewFilesystemScrubConfigV1Alpha1() *FilesystemScrubConfigV1Alpha1 {
+	return &FilesystemScrubConfigV1Alpha1{
 		Meta: meta.Meta{
-			MetaKind:       FilesystemScrubKind,
+			MetaKind:       FilesystemScrubConfigKind,
 			MetaAPIVersion: "v1alpha1",
 		},
 	}
 }
 
-func exampleFilesystemScrubV1Alpha1() *FilesystemScrubV1Alpha1 {
-	cfg := NewFilesystemScrubV1Alpha1()
-	cfg.MetaName = "var"
-	cfg.FSMountpoint = "/var"
-	cfg.ScrubPeriod = 24 * 7 * time.Hour
+func exampleFilesystemScrubConfigV1Alpha1() *FilesystemScrubConfigV1Alpha1 {
+	cfg := NewFilesystemScrubConfigV1Alpha1()
+	cfg.ScrubPeriod = constants.DefaultFilesystemScrubPeriod
 
 	return cfg
 }
 
-// Name implements config.NamedDocument interface.
-func (s *FilesystemScrubV1Alpha1) Name() string {
-	return s.MetaName
-}
-
 // Clone implements config.Document interface.
-func (s *FilesystemScrubV1Alpha1) Clone() config.Document {
+func (s *FilesystemScrubConfigV1Alpha1) Clone() config.Document {
 	return s.DeepCopy()
 }
 
-// Runtime implements config.Config interface.
-func (s *FilesystemScrubV1Alpha1) Runtime() config.RuntimeConfig {
-	return s
-}
-
-// EventsEndpoint implements config.RuntimeConfig interface.
-func (s *FilesystemScrubV1Alpha1) EventsEndpoint() *string {
-	return nil
-}
-
-// KmsgLogURLs implements config.RuntimeConfig interface.
-func (s *FilesystemScrubV1Alpha1) KmsgLogURLs() []*url.URL {
-	return nil
-}
-
-// WatchdogTimer implements config.RuntimeConfig interface.
-func (s *FilesystemScrubV1Alpha1) WatchdogTimer() config.WatchdogTimerConfig {
-	return nil
-}
-
-// FilesystemScrub implements config.FilesystemScrubConfig interface.
-func (s *FilesystemScrubV1Alpha1) FilesystemScrub() []config.FilesystemScrubConfig {
-	return []config.FilesystemScrubConfig{s}
-}
-
-// Mountpoint implements config.FilesystemScrubConfig interface.
-func (s *FilesystemScrubV1Alpha1) Mountpoint() string {
-	return s.FSMountpoint
-}
-
-// Period implements config.FilesystemScrubConfig interface.
-func (s *FilesystemScrubV1Alpha1) Period() time.Duration {
-	if s.ScrubPeriod == 0 {
-		return DefaultScrubPeriod
-	}
-
-	return s.ScrubPeriod
-}
-
 // Validate implements config.Validator interface.
-func (s *FilesystemScrubV1Alpha1) Validate(validation.RuntimeMode, ...validation.Option) ([]string, error) {
-	if s.Name() == "" {
-		return nil, fmt.Errorf("name: empty value")
-	}
-
-	if s.Mountpoint() == "" {
-		return nil, fmt.Errorf("mountpoint: empty value")
-	}
-
-	if s.ScrubPeriod > 0 && s.ScrubPeriod < MinScrubPeriod {
+func (s *FilesystemScrubConfigV1Alpha1) Validate(validation.RuntimeMode, ...validation.Option) ([]string, error) {
+	if s.ScrubPeriod != 0 && s.ScrubPeriod < MinScrubPeriod {
 		return nil, fmt.Errorf("scrub period: minimum value is %s", MinScrubPeriod)
 	}
 
 	return nil, nil
+}
+
+// FilesystemScrubConfigSignal is a signal for filesystem scrub config.
+func (s *FilesystemScrubConfigV1Alpha1) FilesystemScrubConfigSignal() {}
+
+// Enabled implements config.FilesystemScrubConfig interface.
+func (s *FilesystemScrubConfigV1Alpha1) Enabled() optional.Optional[bool] {
+	if s.ScrubEnabled == nil {
+		return optional.None[bool]()
+	}
+
+	return optional.Some(*s.ScrubEnabled)
+}
+
+// Period implements config.FilesystemScrubConfig interface.
+func (s *FilesystemScrubConfigV1Alpha1) Period() optional.Optional[time.Duration] {
+	if s.ScrubPeriod == 0 {
+		return optional.None[time.Duration]()
+	}
+
+	return optional.Some(s.ScrubPeriod)
 }

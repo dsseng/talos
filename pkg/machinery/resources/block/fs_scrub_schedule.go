@@ -18,22 +18,27 @@ import (
 // FSScrubScheduleType is type of FSScrubSchedule resource.
 const FSScrubScheduleType = resource.Type("FSScrubSchedules.block.talos.dev")
 
-// FSScrubSchedule resource holds status of watchdog timer.
+// FSScrubSchedule resource describes when a volume filesystem should be scrubbed.
+//
+// The resource ID is the volume ID.
 type FSScrubSchedule = typed.Resource[FSScrubScheduleSpec, FSScrubScheduleExtension]
 
-// FSScrubScheduleSpec describes scheduled filesystem scrubbing jobs.
+// FSScrubScheduleSpec is the spec for FSScrubSchedule resource.
 //
 //gotagsrewrite:gen
 type FSScrubScheduleSpec struct {
-	Mountpoint string        `yaml:"mountpoint" protobuf:"1"`
-	Period     time.Duration `yaml:"period" protobuf:"2"`
-	StartTime  time.Time     `yaml:"startTime" protobuf:"3"`
+	// Filesystem is the filesystem type of the volume to be scrubbed.
+	Filesystem FilesystemType `yaml:"filesystem" protobuf:"1"`
+	// Period is the scrub period for the volume.
+	Period time.Duration `yaml:"period" protobuf:"2"`
+	// NextScrub is the next scheduled scrub time for the volume.
+	NextScrub time.Time `yaml:"nextScrub" protobuf:"3"`
 }
 
 // NewFSScrubSchedule initializes a FSScrubSchedule resource.
-func NewFSScrubSchedule(id string) *FSScrubSchedule {
+func NewFSScrubSchedule(namespace resource.Namespace, id resource.ID) *FSScrubSchedule {
 	return typed.NewResource[FSScrubScheduleSpec, FSScrubScheduleExtension](
-		resource.NewMetadata(NamespaceName, FSScrubScheduleType, id, resource.VersionUndefined),
+		resource.NewMetadata(namespace, FSScrubScheduleType, id, resource.VersionUndefined),
 		FSScrubScheduleSpec{},
 	)
 }
@@ -49,16 +54,16 @@ func (FSScrubScheduleExtension) ResourceDefinition() meta.ResourceDefinitionSpec
 		DefaultNamespace: NamespaceName,
 		PrintColumns: []meta.PrintColumn{
 			{
-				Name:     "Mountpoint",
-				JSONPath: `{.mountpoint}`,
+				Name:     "Filesystem",
+				JSONPath: `{.filesystem}`,
 			},
 			{
 				Name:     "Period",
 				JSONPath: `{.period}`,
 			},
 			{
-				Name:     "First start time",
-				JSONPath: `{.startTime}`,
+				Name:     "Next Scrub",
+				JSONPath: `{.nextScrub}`,
 			},
 		},
 	}
@@ -67,7 +72,7 @@ func (FSScrubScheduleExtension) ResourceDefinition() meta.ResourceDefinitionSpec
 func init() {
 	proto.RegisterDefaultTypes()
 
-	err := protobuf.RegisterDynamic[FSScrubScheduleSpec](FSScrubScheduleType, &FSScrubSchedule{})
+	err := protobuf.RegisterDynamic(FSScrubScheduleType, &FSScrubSchedule{})
 	if err != nil {
 		panic(err)
 	}

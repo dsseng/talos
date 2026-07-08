@@ -39,6 +39,7 @@ type VolumeConfig interface {
 	Encryption() EncryptionConfig
 	Mount() VolumeMountConfig
 	VolumeTrimConfigProvider
+	VolumeScrubConfigProvider
 }
 
 // VolumeProvisioningConfig defines the interface to access volume provisioning configuration.
@@ -114,6 +115,10 @@ func (emptyVolumeConfig) Trim() VolumeTrimConfig {
 	return nil
 }
 
+func (emptyVolumeConfig) Scrub() VolumeScrubConfig {
+	return nil
+}
+
 type emptyVolumeMountConfig struct{}
 
 func (emptyVolumeMountConfig) DisableAccessTime() bool {
@@ -138,6 +143,7 @@ type UserVolumeConfig interface {
 	Encryption() EncryptionConfig
 	Mount() UserVolumeMountConfig
 	VolumeTrimConfigProvider
+	VolumeScrubConfigProvider
 }
 
 // RawVolumeConfig defines the interface to access raw volume configuration.
@@ -155,6 +161,7 @@ type ExistingVolumeConfig interface {
 	VolumeDiscovery() VolumeDiscoveryConfig
 	Mount() ExistingVolumeMountConfig
 	VolumeTrimConfigProvider
+	VolumeScrubConfigProvider
 }
 
 // ExternalVolumeConfig defines the interface to access external volume configuration.
@@ -243,4 +250,29 @@ type VolumeTrimConfig interface {
 	Enabled() optional.Optional[bool]
 	// Interval returns the trim interval for the volume (if explicitly set), overriding the global interval.
 	Interval() optional.Optional[time.Duration]
+}
+
+// FilesystemScrubConfig defines the interface to access global filesystem scrub configuration.
+type FilesystemScrubConfig interface {
+	FilesystemScrubConfigSignal()
+	// Enabled returns whether periodic filesystem scrubbing is enabled (if explicitly set).
+	Enabled() optional.Optional[bool]
+	// Period returns the global scrub period (if explicitly set).
+	Period() optional.Optional[time.Duration]
+}
+
+// VolumeScrubConfigProvider defines the interface to access per-volume scrub configuration.
+type VolumeScrubConfigProvider interface {
+	// Scrub returns the per-volume scrub configuration, or nil if not set.
+	Scrub() VolumeScrubConfig
+}
+
+// VolumeScrubConfig defines the interface to access per-volume filesystem scrub configuration.
+//
+// It overrides the global filesystem scrub configuration for the volume.
+type VolumeScrubConfig interface {
+	// Enabled returns whether scrubbing is enabled for the volume (if explicitly set).
+	Enabled() optional.Optional[bool]
+	// Period returns the scrub period for the volume (if explicitly set), overriding the global period.
+	Period() optional.Optional[time.Duration]
 }

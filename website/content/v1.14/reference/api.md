@@ -351,7 +351,6 @@ description: Talos gRPC API reference.
     - [RuntimeKernelModuleType](#talos.resource.definitions.enums.RuntimeKernelModuleType)
     - [RuntimeMachineStage](#talos.resource.definitions.enums.RuntimeMachineStage)
     - [RuntimeSELinuxState](#talos.resource.definitions.enums.RuntimeSELinuxState)
-    - [RuntimeTaskState](#talos.resource.definitions.enums.RuntimeTaskState)
     - [RuntimeUnattendedInstallPhase](#talos.resource.definitions.enums.RuntimeUnattendedInstallPhase)
     - [StorageLVMLogicalVolumeType](#talos.resource.definitions.enums.StorageLVMLogicalVolumeType)
     - [StorageMDArrayPhase](#talos.resource.definitions.enums.StorageMDArrayPhase)
@@ -367,7 +366,6 @@ description: Talos gRPC API reference.
     - [DiskSpec](#talos.resource.definitions.block.DiskSpec)
     - [EncryptionKey](#talos.resource.definitions.block.EncryptionKey)
     - [EncryptionSpec](#talos.resource.definitions.block.EncryptionSpec)
-    - [FSScrubConfigSpec](#talos.resource.definitions.block.FSScrubConfigSpec)
     - [FSScrubScheduleSpec](#talos.resource.definitions.block.FSScrubScheduleSpec)
     - [FSScrubStatusSpec](#talos.resource.definitions.block.FSScrubStatusSpec)
     - [FilesystemSpec](#talos.resource.definitions.block.FilesystemSpec)
@@ -538,8 +536,6 @@ description: Talos gRPC API reference.
     - [SBOMItemSpec](#talos.resource.definitions.runtime.SBOMItemSpec)
     - [SecurityStateSpec](#talos.resource.definitions.runtime.SecurityStateSpec)
     - [ServicePIDSpec](#talos.resource.definitions.runtime.ServicePIDSpec)
-    - [TaskSpec](#talos.resource.definitions.runtime.TaskSpec)
-    - [TaskStatusSpec](#talos.resource.definitions.runtime.TaskStatusSpec)
     - [UnattendedInstallStatusSpec](#talos.resource.definitions.runtime.UnattendedInstallStatusSpec)
     - [UniqueMachineTokenSpec](#talos.resource.definitions.runtime.UniqueMachineTokenSpec)
     - [UnmetCondition](#talos.resource.definitions.runtime.UnmetCondition)
@@ -6268,20 +6264,6 @@ RuntimeSELinuxState describes the current SELinux status.
 
 
 
-<a name="talos.resource.definitions.enums.RuntimeTaskState"></a>
-
-### RuntimeTaskState
-RuntimeTaskState describes the task state.
-
-| Name | Number | Description |
-| ---- | ------ | ----------- |
-| TASK_STATE_CREATED | 0 |  |
-| TASK_STATE_RUNNING | 1 |  |
-| TASK_STATE_STOPPING | 2 |  |
-| TASK_STATE_COMPLETED | 3 |  |
-
-
-
 <a name="talos.resource.definitions.enums.RuntimeUnattendedInstallPhase"></a>
 
 ### RuntimeUnattendedInstallPhase
@@ -6542,34 +6524,17 @@ EncryptionSpec is the spec for volume encryption.
 
 
 
-<a name="talos.resource.definitions.block.FSScrubConfigSpec"></a>
-
-### FSScrubConfigSpec
-FSScrubConfigSpec describes configuration of periodic filesystem scrubbing.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| name | [string](#string) |  |  |
-| mountpoint | [string](#string) |  |  |
-| period | [google.protobuf.Duration](#google.protobuf.Duration) |  |  |
-
-
-
-
-
-
 <a name="talos.resource.definitions.block.FSScrubScheduleSpec"></a>
 
 ### FSScrubScheduleSpec
-FSScrubScheduleSpec describes scheduled filesystem scrubbing jobs.
+FSScrubScheduleSpec is the spec for FSScrubSchedule resource.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| mountpoint | [string](#string) |  |  |
-| period | [google.protobuf.Duration](#google.protobuf.Duration) |  |  |
-| start_time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  |  |
+| filesystem | [talos.resource.definitions.enums.BlockFilesystemType](#talos.resource.definitions.enums.BlockFilesystemType) |  | Filesystem is the filesystem type of the volume to be scrubbed. |
+| period | [google.protobuf.Duration](#google.protobuf.Duration) |  | Period is the scrub period for the volume. |
+| next_scrub | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | NextScrub is the next scheduled scrub time for the volume. |
 
 
 
@@ -6584,11 +6549,11 @@ FSScrubStatusSpec describes status of filesystem scrub jobs.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| mountpoint | [string](#string) |  |  |
-| period | [google.protobuf.Duration](#google.protobuf.Duration) |  |  |
-| time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  |  |
-| duration | [google.protobuf.Duration](#google.protobuf.Duration) |  |  |
-| status | [string](#string) |  |  |
+| mountpoint | [string](#string) |  | Mountpoint of the filesystem which was scrubbed. |
+| period | [google.protobuf.Duration](#google.protobuf.Duration) |  | Period is the scrub period for the volume. |
+| time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Time is the start time of the most recent scrub. |
+| duration | [google.protobuf.Duration](#google.protobuf.Duration) |  | Duration of the most recent scrub. |
+| status | [string](#string) |  | Status is the result of the most recent scrub ("success" or an error message). |
 
 
 
@@ -6870,6 +6835,8 @@ VolumeConfigSpec is the spec for VolumeConfig resource.
 | symlink | [SymlinkProvisioningSpec](#talos.resource.definitions.block.SymlinkProvisioningSpec) |  | Symlink options for the volume. |
 | trim_enabled | [bool](#bool) |  | TrimEnabled indicates whether the volume should be trimmed (fstrim) on a schedule. |
 | trim_interval | [google.protobuf.Duration](#google.protobuf.Duration) |  | TrimInterval is the resolved interval at which the volume should be trimmed. |
+| scrub_enabled | [bool](#bool) |  | ScrubEnabled indicates whether the volume filesystem should be scrubbed on a schedule. |
+| scrub_period | [google.protobuf.Duration](#google.protobuf.Duration) |  | ScrubPeriod is the resolved period at which the volume filesystem should be scrubbed. |
 
 
 
@@ -6950,6 +6917,8 @@ VolumeStatusSpec is the spec for VolumeStatus resource.
 | encryption_allow_discards | [bool](#bool) |  | EncryptionAllowDiscards indicates whether the encrypted volume passes discards to the underlying device. |
 | trim_enabled | [bool](#bool) |  | TrimEnabled indicates whether the volume should be trimmed (fstrim) on a schedule. |
 | trim_interval | [google.protobuf.Duration](#google.protobuf.Duration) |  | TrimInterval is the resolved interval at which the volume should be trimmed. |
+| scrub_enabled | [bool](#bool) |  | ScrubEnabled indicates whether the volume filesystem should be scrubbed on a schedule. |
+| scrub_period | [google.protobuf.Duration](#google.protobuf.Duration) |  | ScrubPeriod is the resolved period at which the volume filesystem should be scrubbed. |
 
 
 
@@ -9377,44 +9346,6 @@ ServicePIDSpec is the spec for the service PID.
 | ----- | ---- | ----- | ----------- |
 | pid | [int32](#int32) |  | PID is the host PID of the service. |
 | mount_namespace | [string](#string) |  | MountNamespace is the mount namespace of the service. |
-
-
-
-
-
-
-<a name="talos.resource.definitions.runtime.TaskSpec"></a>
-
-### TaskSpec
-TaskSpec describes a background task to be run by a schedule.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| id | [string](#string) |  |  |
-| owner | [string](#string) |  |  |
-| args | [string](#string) | repeated |  |
-| selinux_label | [string](#string) |  |  |
-
-
-
-
-
-
-<a name="talos.resource.definitions.runtime.TaskStatusSpec"></a>
-
-### TaskStatusSpec
-TaskStatusSpec describes status of a background task.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| id | [string](#string) |  |  |
-| task_state | [talos.resource.definitions.enums.RuntimeTaskState](#talos.resource.definitions.enums.RuntimeTaskState) |  |  |
-| result | [string](#string) |  |  |
-| start | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  |  |
-| duration | [google.protobuf.Duration](#google.protobuf.Duration) |  |  |
-| owner | [string](#string) |  |  |
 
 
 

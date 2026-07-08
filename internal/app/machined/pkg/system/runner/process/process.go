@@ -123,6 +123,38 @@ func dropCaps(droppedCapabilities []string, launcher *cap.Launcher) error {
 	return nil
 }
 
+// keepCaps configures the launcher to run with only the allowed capabilities, dropping all
+// other capabilities the running kernel supports (additive model): capabilities not explicitly
+// allowed - including ones introduced by future kernels - are never granted to the process.
+func keepCaps(allowedCapabilities []string, launcher *cap.Launcher) error {
+	allowed := make(map[cap.Value]struct{}, len(allowedCapabilities))
+
+	for _, c := range allowedCapabilities {
+		capability, capErr := cap.FromName(c)
+		if capErr != nil {
+			return fmt.Errorf("failed to parse capability: %w", capErr)
+		}
+
+		allowed[capability] = struct{}{}
+	}
+
+	iab := cap.IABGetProc()
+
+	for capability := range cap.MaxBits() {
+		if _, keep := allowed[capability]; keep {
+			continue
+		}
+
+		if err := iab.SetVector(cap.Bound, true, capability); err != nil {
+			return fmt.Errorf("failed to drop capability %q: %w", capability, err)
+		}
+	}
+
+	launcher.SetIAB(iab)
+
+	return nil
+}
+
 // This callback is run in the thread before executing child process.
 func beforeExecCallback(pa *syscall.ProcAttr, data any) error {
 	wrapper, ok := data.(*commandWrapper)
@@ -188,8 +220,17 @@ func (p *processRunner) build(extraLogWriter io.Writer) (commandWrapper, error) 
 	}
 
 	// reduce capabilities and assign them to launcher
-	if err := dropCaps(p.opts.DroppedCapabilities, launcher); err != nil {
-		return commandWrapper{}, err
+	switch {
+	case p.opts.AllowedCapabilities != nil && p.opts.DroppedCapabilities != nil:
+		return commandWrapper{}, fmt.Errorf("allowed and dropped capabilities are mutually exclusive")
+	case p.opts.AllowedCapabilities != nil:
+		if err := keepCaps(p.opts.AllowedCapabilities, launcher); err != nil {
+			return commandWrapper{}, err
+		}
+	default:
+		if err := dropCaps(p.opts.DroppedCapabilities, launcher); err != nil {
+			return commandWrapper{}, err
+		}
 	}
 
 	launcher.Callback(beforeExecCallback)

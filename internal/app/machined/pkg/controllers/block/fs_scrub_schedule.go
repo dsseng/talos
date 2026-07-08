@@ -7,30 +7,30 @@ package block
 import (
 	"context"
 	"fmt"
-	"hash/fnv"
 	"time"
 
 	"github.com/cosi-project/runtime/pkg/controller"
 	"github.com/cosi-project/runtime/pkg/safe"
 	"github.com/cosi-project/runtime/pkg/state"
+	"github.com/siderolabs/gen/optional"
 	"go.uber.org/zap"
 
-	blockcfg "github.com/siderolabs/talos/pkg/machinery/config/types/block"
 	"github.com/siderolabs/talos/pkg/machinery/resources/block"
+	"github.com/siderolabs/talos/pkg/machinery/resources/cluster"
 )
 
-// ScrubSchedule is the in-memory representation of a single scheduled scrub task.
-type ScrubSchedule struct {
-	id         string
-	mountpoint string
-	period     time.Duration
-	startTime  time.Time // first time to start; deterministic from path & period
-}
-
-// FSScrubScheduleController watches v1alpha1.Config and schedules filesystem online check tasks.
-type FSScrubScheduleController struct {
-	schedule map[string]ScrubSchedule
-}
+// FSScrubScheduleController builds a stable scrub schedule for volumes which support scrubbing.
+//
+// It looks at all ready volumes with a scrub-capable filesystem (currently XFS) which have
+// scrubbing enabled, and produces a FSScrubSchedule resource per volume with a stable,
+// hash-derived next scrub time.
+//
+// The resolved scrub settings (enabled/period) are carried on the VolumeStatus resource itself
+// (populated from the machine config by the VolumeConfig/VolumeManager controllers).
+//
+// The schedule hash is salted with the node ID, so different nodes in a cluster scrub at
+// different times even if they have identically named volumes.
+type FSScrubScheduleController struct{}
 
 // Name implements controller.Controller interface.
 func (ctrl *FSScrubScheduleController) Name() string {
@@ -42,17 +42,13 @@ func (ctrl *FSScrubScheduleController) Inputs() []controller.Input {
 	return []controller.Input{
 		{
 			Namespace: block.NamespaceName,
-			Type:      block.FSScrubConfigType,
-			Kind:      controller.InputWeak,
-		},
-		{
-			Namespace: block.NamespaceName,
 			Type:      block.VolumeStatusType,
 			Kind:      controller.InputWeak,
 		},
 		{
-			Namespace: block.NamespaceName,
-			Type:      block.VolumeConfigType,
+			Namespace: cluster.NamespaceName,
+			Type:      cluster.IdentityType,
+			ID:        optional.Some(cluster.LocalIdentity),
 			Kind:      controller.InputWeak,
 		},
 	}
@@ -69,161 +65,104 @@ func (ctrl *FSScrubScheduleController) Outputs() []controller.Output {
 }
 
 // Run implements controller.Controller interface.
+//
+//nolint:gocyclo
 func (ctrl *FSScrubScheduleController) Run(ctx context.Context, r controller.Runtime, logger *zap.Logger) error {
-	ctrl.schedule = make(map[string]ScrubSchedule)
+	// timer used to refresh the scheduled NextScrub values once they pass.
+	timer := time.NewTimer(time.Hour)
+	defer timer.Stop()
+
+	timer.Stop()
+
+	drainTimer := func() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-r.EventCh():
-			err := ctrl.updateSchedule(ctx, r)
-			if err != nil {
-				return err
-			}
+		case <-timer.C:
 		}
 
-		if err := ctrl.updateOutputs(ctx, r); err != nil {
-			return err
-		}
-	}
-}
-
-func (ctrl *FSScrubScheduleController) updateOutputs(ctx context.Context, r controller.Runtime) error {
-	r.StartTrackingOutputs()
-
-	presentEntries, err := safe.ReaderListAll[*block.FSScrubSchedule](ctx, r)
-	if err != nil && !state.IsNotFoundError(err) {
-		return fmt.Errorf("error getting existing FS scrub schedules: %w", err)
-	}
-
-	for entry := range presentEntries.All() {
-		if _, ok := ctrl.schedule[entry.TypedSpec().Mountpoint]; !ok {
-			if err := r.Destroy(ctx, block.NewFSScrubSchedule(entry.Metadata().ID()).Metadata()); err != nil {
-				return fmt.Errorf("error destroying old FS scrub schedules: %w", err)
-			}
-		}
-	}
-
-	for _, entry := range ctrl.schedule {
-		if err := safe.WriterModify(ctx, r, block.NewFSScrubSchedule(entry.id), func(status *block.FSScrubSchedule) error {
-			status.TypedSpec().Mountpoint = entry.mountpoint
-			status.TypedSpec().Period = entry.period
-			status.TypedSpec().StartTime = entry.startTime
-
-			return nil
-		}); err != nil {
-			return fmt.Errorf("error updating filesystem scrub schedules: %w", err)
-		}
-	}
-
-	if err := safe.CleanupOutputs[*block.FSScrubSchedule](ctx, r); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// deterministicStartTime returns the next scrub start time for the given mountpoint,
-// such that:
-// - The start time is strictly in the future (relative to now).
-// - For a given (path, period) pair, the start time is always constantly phased.
-//
-// The phase is deterministically computed from a hash of the mountpoint
-// This method allows scrub jobs to be tied to a schedule that is stable across reboots,
-// while keeping them distributed in time.
-func deterministicStartTime(path string, period time.Duration, now time.Time) time.Time {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte(path))
-	phaseNs := int64(h.Sum64() % uint64(period.Nanoseconds()))
-
-	nowNs := now.UnixNano()
-	periodNs := period.Nanoseconds()
-
-	// delta is the elapsed time since the last phase-aligned moment.
-	delta := (nowNs - phaseNs) % periodNs
-	if delta < 0 {
-		delta += periodNs
-	}
-
-	// The next phase-aligned moment is one full period after the previous one,
-	// so it's always strictly in the future (delta < periodNs -> periodNs - delta > 0).
-	nextNs := nowNs - delta + periodNs
-
-	return time.Unix(0, nextNs)
-}
-
-//nolint:gocyclo,cyclop
-func (ctrl *FSScrubScheduleController) updateSchedule(ctx context.Context, r controller.Runtime) error {
-	volumesStatus, err := safe.ReaderListAll[*block.VolumeStatus](ctx, r)
-	if err != nil && !state.IsNotFoundError(err) {
-		return fmt.Errorf("error getting volume status: %w", err)
-	}
-
-	// Deschedule scrubs for volumes that are no longer mounted.
-	for mountpoint := range ctrl.schedule {
-		isMounted := false
-
-		for item := range volumesStatus.All() {
-			vol := item.TypedSpec()
-
-			volumeConfig, err := safe.ReaderGetByID[*block.VolumeConfig](ctx, r, item.Metadata().ID())
-			if err != nil {
-				return fmt.Errorf("error getting volume config: %w", err)
-			}
-
-			if volumeConfig.TypedSpec().Mount.TargetPath == mountpoint && vol.Phase == block.VolumePhaseReady {
-				isMounted = true
-
-				break
-			}
+		identity, err := safe.ReaderGetByID[*cluster.Identity](ctx, r, cluster.LocalIdentity)
+		if err != nil && !state.IsNotFoundError(err) {
+			return fmt.Errorf("failed to get node identity: %w", err)
 		}
 
-		if !isMounted {
-			delete(ctrl.schedule, mountpoint)
-		}
-	}
-
-	cfg, err := safe.ReaderListAll[*block.FSScrubConfig](ctx, r)
-	if err != nil && !state.IsNotFoundError(err) {
-		return fmt.Errorf("error getting scrub config: %w", err)
-	}
-
-	for item := range volumesStatus.All() {
-		vol := item.TypedSpec()
-
-		if vol.Phase != block.VolumePhaseReady {
-			continue
-		}
-
-		if vol.Filesystem != block.FilesystemTypeXFS {
-			continue
-		}
-
-		volumeConfig, err := safe.ReaderGetByID[*block.VolumeConfig](ctx, r, item.Metadata().ID())
+		volumeStatuses, err := safe.ReaderListAll[*block.VolumeStatus](ctx, r)
 		if err != nil {
-			return fmt.Errorf("error getting volume config: %w", err)
+			return fmt.Errorf("failed to list volume statuses: %w", err)
 		}
 
-		mountpoint := volumeConfig.TypedSpec().Mount.TargetPath
+		now := time.Now()
 
-		period := blockcfg.DefaultScrubPeriod
+		r.StartTrackingOutputs()
 
-		for fs := range cfg.All() {
-			if fs.TypedSpec().Mountpoint == mountpoint && fs.TypedSpec().Period > 0 {
-				period = fs.TypedSpec().Period
+		// without a node identity, no schedules are produced.
+		if identity != nil {
+			nodeID := identity.TypedSpec().NodeID
 
-				break
+			var earliestNext time.Time
+
+			for volumeStatus := range volumeStatuses.All() {
+				if !scrubEligible(volumeStatus.TypedSpec()) {
+					continue
+				}
+
+				volumeID := volumeStatus.Metadata().ID()
+				period := volumeStatus.TypedSpec().ScrubPeriod
+				filesystem := volumeStatus.TypedSpec().Filesystem
+
+				// salt the schedule with the node ID so different nodes scrub at different times.
+				nextScrub := block.NextScheduledTime(nodeID+"/"+volumeID, period, now)
+
+				if earliestNext.IsZero() || nextScrub.Before(earliestNext) {
+					earliestNext = nextScrub
+				}
+
+				if err = safe.WriterModify(
+					ctx, r, block.NewFSScrubSchedule(block.NamespaceName, volumeID),
+					func(schedule *block.FSScrubSchedule) error {
+						schedule.TypedSpec().Filesystem = filesystem
+						schedule.TypedSpec().Period = period
+						schedule.TypedSpec().NextScrub = nextScrub
+
+						return nil
+					},
+				); err != nil {
+					return fmt.Errorf("failed to update scrub schedule for volume %q: %w", volumeID, err)
+				}
+			}
+
+			// re-arm the timer to refresh the schedule once the earliest NextScrub passes.
+			drainTimer()
+
+			if !earliestNext.IsZero() {
+				timer.Reset(max(time.Until(earliestNext), time.Second))
 			}
 		}
 
-		ctrl.schedule[mountpoint] = ScrubSchedule{
-			id:         item.Metadata().ID(),
-			mountpoint: mountpoint,
-			period:     period,
-			startTime:  deterministicStartTime(mountpoint, period, time.Now()),
+		if err = safe.CleanupOutputs[*block.FSScrubSchedule](ctx, r); err != nil {
+			return fmt.Errorf("failed to clean up scrub schedules: %w", err)
 		}
 	}
+}
 
-	return nil
+// scrubEligible reports whether a volume filesystem should be scrubbed on a schedule.
+func scrubEligible(spec *block.VolumeStatusSpec) bool {
+	if !spec.ScrubEnabled || spec.ScrubPeriod <= 0 {
+		return false
+	}
+
+	if spec.Phase != block.VolumePhaseReady {
+		return false
+	}
+
+	// only XFS filesystems support online scrubbing (xfs_scrub).
+	return spec.Filesystem == block.FilesystemTypeXFS
 }
