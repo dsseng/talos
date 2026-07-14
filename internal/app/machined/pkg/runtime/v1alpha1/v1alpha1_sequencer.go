@@ -232,6 +232,10 @@ func (*Sequencer) Boot(r runtime.Runtime) []runtime.Phase {
 		MountEphemeralPartition,
 	).AppendWhen(
 		r.State().Platform().Mode() != runtime.ModeContainer,
+		"promotableVolumes",
+		MountPromotableSystemPartitions,
+	).AppendWhen(
+		r.State().Platform().Mode() != runtime.ModeContainer,
 		"userDisks",
 		pauseOnFailure(MountUserDisks, constants.FailurePauseTimeout),
 	).Append(
@@ -460,6 +464,9 @@ func (*Sequencer) Upgrade(r runtime.Runtime, in *machineapi.UpgradeRequest) []ru
 			"unmountBind",
 			UnmountSystemDiskBindMounts,
 		).Append(
+			"unmountPromotable",
+			UnmountPromotableSystemPartitions,
+		).Append(
 			"unmountSystem",
 			UnmountEphemeralPartition,
 		).Append(
@@ -507,6 +514,9 @@ func stopAllPhaselist(r runtime.Runtime, enableKexec bool) PhaseList {
 			"unmountBind",
 			UnmountSystemDiskBindMounts,
 		).Append(
+			"unmountPromotable",
+			UnmountPromotableSystemPartitions,
+		).Append(
 			"unmountSystem",
 			UnmountEphemeralPartition,
 		).Append(
@@ -543,6 +553,9 @@ func (*Sequencer) EmergencyVolumeCleanup(r runtime.Runtime) []runtime.Phase {
 		).Append(
 			"unmountBind",
 			UnmountSystemDiskBindMounts,
+		).Append(
+			"unmountPromotable",
+			UnmountPromotableSystemPartitions,
 		).Append(
 			"unmountSystem",
 			UnmountEphemeralPartition,
