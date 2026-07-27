@@ -201,9 +201,9 @@ func withNetworkContext(ctx context.Context, config *LaunchConfig, f func(config
 			//
 			// no need to clean up the rule, as CNI drops the whole chain
 			// FIXME: Skip when IPv4 is disabled
-			// if err = ipt.InsertUnique("nat", cniChain, 1, "--destination", "255.255.255.255/32", "-j", "ACCEPT"); err != nil {
-			// 	return fmt.Errorf("failed to insert iptables rule to allow broadcast traffic: %w", err)
-			// }
+			if err = ipt.InsertUnique("nat", cniChain, 1, "--destination", "255.255.255.255/32", "-j", "ACCEPT"); err != nil {
+				return fmt.Errorf("failed to insert iptables rule to allow broadcast traffic: %w", err)
+			}
 
 			for _, cidr := range config.Network.NoMasqueradeCIDRs {
 				table := ipt

@@ -37,7 +37,7 @@ func (p *Provisioner) CreateLoadBalancer(state *provision.State, clusterReq prov
 
 	args := []string{
 		"loadbalancer-launch",
-		"--loadbalancer-addr", getLbBindIP(clusterReq.Network.GatewayAddrs[0]), //
+		"--loadbalancer-addr", getLbBindIP(clusterReq.Network.GatewayAddrs[0]),
 		"--loadbalancer-upstreams", strings.Join(controlPlaneIPs, ","),
 	}
 

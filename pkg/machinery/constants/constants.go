@@ -1056,7 +1056,7 @@ const (
 	DefaultPrimaryResolver = "1.1.1.1"
 
 	// DefaultSecondaryResolver is the default secondary DNS server.
-	DefaultSecondaryResolver = "2001:4860:4860::8888"
+	DefaultSecondaryResolver = "8.8.8.8"
 
 	// DefaultClusterIDSize is the default size in bytes for the cluster ID token.
 	DefaultClusterIDSize = 32

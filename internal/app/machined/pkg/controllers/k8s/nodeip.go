@@ -131,10 +131,9 @@ func (ctrl *NodeIPController) Run(ctx context.Context, r controller.Runtime, log
 					logger.Warn("node IP skipped, please use .machine.kubelet.nodeIP to provide explicit subnet for the node IP", zap.Stringer("address", ip))
 				}
 			case ip.Is6():
-				if !hasIPv6 /*&& ip.IsGlobalUnicast()*/ {
+				if !hasIPv6 {
 					nodeIPs = append(nodeIPs, ip)
 					hasIPv6 = true
-					logger.Warn("node IPv6 added", zap.Stringer("address", ip))
 				} else {
 					logger.Warn("node IP skipped, please use .machine.kubelet.nodeIP to provide explicit subnet for the node IP", zap.Stringer("address", ip))
 				}
