@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
@@ -27,7 +26,6 @@ import (
 	"github.com/siderolabs/gen/xslices"
 	"github.com/siderolabs/go-cmd/pkg/cmd"
 	"github.com/siderolabs/go-procfs/procfs"
-	"github.com/siderolabs/go-retry/retry"
 
 	"github.com/siderolabs/talos/pkg/machinery/config/machine"
 	"github.com/siderolabs/talos/pkg/machinery/constants"
@@ -133,23 +131,7 @@ func (p *provisioner) createNode(ctx context.Context, state *provision.State, cl
 		nodeUUID = *nodeReq.UUID
 	}
 
-	// apiBind, err := p.findAPIBindAddrs(ctx, clusterReq)
-	// if err != nil {
-	// 	return provision.NodeInfo{}, fmt.Errorf("error finding listen address for the API: %w", err)
-	// }
-
-	var apiBind *net.TCPAddr
-
-	err = retry.Constant(
-		time.Minute,
-		retry.WithUnits(time.Second),
-	).Retry(func() error {
-		var err error
-		apiBind, err = p.findAPIBindAddrs(ctx, clusterReq)
-
-		return retry.ExpectedError(err)
-	})
-
+	apiBind, err := p.findAPIBindAddrs(ctx, clusterReq)
 	if err != nil {
 		return provision.NodeInfo{}, fmt.Errorf("error finding listen address for the API: %w", err)
 	}
