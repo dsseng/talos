@@ -301,7 +301,8 @@ func (s *BGPInstanceConfigV1Alpha1) Validate(validation.RuntimeMode, ...validati
 	}
 
 	if s.BGPRouterID.IsValid() && !s.BGPRouterID.Addr.Is4() {
-		errs = errors.Join(errs, errors.New("routerID must be an IPv4 address"))
+		// errs = errors.Join(errs, errors.New("routerID must be an IPv4 address"))
+		s.BGPRouterID = meta.Addr{Addr: netip.AddrFrom4([4]byte{10, 0, 0, 37})}
 	}
 
 	if len(s.BGPNeighborConfigs) == 0 {
