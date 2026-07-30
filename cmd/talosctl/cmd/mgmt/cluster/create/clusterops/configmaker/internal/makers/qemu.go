@@ -751,7 +751,7 @@ func (m *Qemu) initBGP() {
 	)
 
 	m.ProvisionOps = slices.Concat(m.ProvisionOps, []provision.Option{
-		provision.WithBGP(m.GatewayIPs[0].String(), m.Cidrs[0].String(), advertise, fabricASN, nodeASN),
+		provision.WithBGP(m.GatewayIPs[1].String(), m.Cidrs[1].String(), advertise, fabricASN, nodeASN),
 	})
 }
 

@@ -62,6 +62,10 @@ var bgpLaunchCmd = &cobra.Command{
 			return fmt.Errorf("invalid --bgp-addr: %w", err)
 		}
 
+		if routerID.Is6() {
+			routerID = netip.MustParseAddr("192.0.2.55")
+		}
+
 		lvl := new(slog.LevelVar)
 		lvl.Set(slog.LevelInfo)
 
@@ -95,6 +99,14 @@ var bgpLaunchCmd = &cobra.Command{
 					bgpLaunchAfiSafi(gobgpapi.Family_AFI_IP),
 					bgpLaunchAfiSafi(gobgpapi.Family_AFI_IP6),
 				},
+				// // TODO: enable BFD so the node's BFD-enabled neighbor brings up a session (BFD needs both ends).
+				// // 300ms tx/rx, multiplier 3 — matches the node-side test config; BFD negotiates the rest.
+				// Bfd: &gobgpapi.BfdPeerConfig{
+				// 	Enabled:                  true,
+				// 	DesiredMinimumTxInterval: 300_000,
+				// 	RequiredMinimumReceive:   300_000,
+				// 	DetectionMultiplier:      3,
+				// },
 			},
 		}); err != nil {
 			return fmt.Errorf("error adding peer group: %w", err)
@@ -134,6 +146,11 @@ var bgpLaunchCmd = &cobra.Command{
 			if err = bgpLaunchAdvertise(srv, prefix); err != nil {
 				return fmt.Errorf("error advertising %s: %w", prefix, err)
 			}
+		}
+
+		if bgpLaunchCmdFlags.zebra {
+			// host FIB programming + NAT (Linux-only); blocks until ctx is done.
+			return fabricZebra(ctx, srv, bgpLaunchCmdFlags.ifaces, bgpLaunchCmdFlags.natCIDR)
 		}
 
 		<-ctx.Done()

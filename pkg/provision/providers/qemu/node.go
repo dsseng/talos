@@ -465,11 +465,11 @@ func buildFabricUplinks(networkName, managementBridge string, nodeIdx, count, mt
 	}
 
 	if bgpEnabled && !bgpCLOS {
-		uplinks = append(uplinks, FabricUplink{
-			BridgeName:  managementBridge,
-			IfName:      "vethvrf",
-			CNIConfList: fabricCNIConfList(managementBridge, mtu),
-		})
+		// uplinks = append(uplinks, FabricUplink{
+		// 	BridgeName:  managementBridge,
+		// 	IfName:      "vethvrf",
+		// 	CNIConfList: fabricCNIConfList(managementBridge, mtu),
+		// })
 	}
 
 	return uplinks
