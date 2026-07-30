@@ -64,7 +64,7 @@ func (p *Provisioner) CreateBGP(state *provision.State, clusterReq provision.Clu
 
 	defer logFile.Close() //nolint:errcheck
 
-	args := bgpLaunchArgs(clusterReq, options)
+	args := bgpLaunchArgs(state, clusterReq, options)
 
 	if err = prepareBGPVRFPeerRoute(state, clusterReq, options); err != nil {
 		return err
@@ -86,7 +86,7 @@ func (p *Provisioner) CreateBGP(state *provision.State, clusterReq provision.Clu
 	return nil
 }
 
-func bgpLaunchArgs(clusterReq provision.ClusterRequest, options provision.Options) []string {
+func bgpLaunchArgs(state *provision.State, clusterReq provision.ClusterRequest, options provision.Options) []string {
 	listenAddr := options.BGPListenAddress
 	if listenAddr == "" && len(clusterReq.Network.GatewayAddrs) > 0 {
 		// unnumbered mode has no configured listen address; use the bridge gateway as the router-id.
@@ -100,9 +100,11 @@ func bgpLaunchArgs(clusterReq provision.ClusterRequest, options provision.Option
 		"--bgp-advertise", options.BGPAdvertise,
 		"--bgp-asn", strconv.FormatUint(uint64(options.BGPLocalASN), 10),
 		"--bgp-peer-asn", strconv.FormatUint(uint64(options.BGPPeerASN), 10),
+		"--bgp-zebra",
 	}
 
 	if !options.BGPCLOS {
+		args = append(args, "--bgp-interface", state.BridgeName)
 		return append(args, "--bgp-vrf-neighbor", VRFPeerAddress().String())
 	}
 
