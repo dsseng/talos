@@ -27,7 +27,7 @@ type NDP struct {
 
 	mu        sync.Mutex
 	resolvers []network.ResolverSpecSpec
-	///TODO: support Managed flag to enable DHCPv6
+	operators []network.OperatorSpecSpec
 	///TODO: support Other flag, which should make hosts
 	// only request DNS/NTP data from DHCPv6, and not ask for addresses
 }
@@ -118,12 +118,29 @@ func (d *NDP) Run(ctx context.Context, notifyCh chan<- struct{}) {
 				d.mu.Unlock()
 			}
 
+			if ra.ManagedConfiguration {
+				d.mu.Lock()
+				d.operators = []network.OperatorSpecSpec{
+					{
+						Operator:  network.OperatorDHCP6,
+						LinkName:  d.linkName,
+						RequireUp: true,
+						DHCP6: network.DHCP6OperatorSpec{
+							RouteMetric: network.DefaultRouteMetric, // FIXME: NDP RA metric
+						},
+						ConfigLayer: network.ConfigOperator,
+					},
+				}
+				d.mu.Unlock()
+			}
+
 			notifyCh <- struct{}{}
 		case <-routerLifetimeTimer.C:
 			fmt.Println("ra expired")
 			d.mu.Lock()
 			///TODO: Remove also Managed/Other and everything else derived from RA
 			d.resolvers = []network.ResolverSpecSpec{}
+			d.operators = []network.OperatorSpecSpec{}
 			d.mu.Unlock()
 
 			notifyCh <- struct{}{}
@@ -176,5 +193,5 @@ func (d *NDP) OperatorSpecs() []network.OperatorSpecSpec {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	return nil
+	return d.operators
 }
