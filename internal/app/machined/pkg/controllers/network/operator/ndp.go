@@ -170,3 +170,11 @@ func (d *NDP) ResolverSpecs() []network.ResolverSpecSpec {
 func (d *NDP) TimeServerSpecs() []network.TimeServerSpecSpec {
 	return nil
 }
+
+// OperatorSpecs implements Operator interface.
+func (d *NDP) OperatorSpecs() []network.OperatorSpecSpec {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return nil
+}

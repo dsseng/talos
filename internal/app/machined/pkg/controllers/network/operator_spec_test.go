@@ -43,6 +43,7 @@ type mockOperator struct {
 	hostname    []network.HostnameSpecSpec
 	resolvers   []network.ResolverSpecSpec
 	timeservers []network.TimeServerSpecSpec
+	operators   []network.OperatorSpecSpec
 }
 
 var (
@@ -127,6 +128,13 @@ func (mock *mockOperator) TimeServerSpecs() []network.TimeServerSpecSpec {
 	defer mock.mu.Unlock()
 
 	return mock.timeservers
+}
+
+func (mock *mockOperator) OperatorSpecs() []network.OperatorSpecSpec {
+	mock.mu.Lock()
+	defer mock.mu.Unlock()
+
+	return mock.operators
 }
 
 func (suite *OperatorSpecSuite) newOperator(_ *zap.Logger, spec *network.OperatorSpecSpec) operator.Operator {

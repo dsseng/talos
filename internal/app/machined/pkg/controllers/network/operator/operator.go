@@ -24,4 +24,5 @@ type Operator interface {
 	HostnameSpecs() []network.HostnameSpecSpec
 	ResolverSpecs() []network.ResolverSpecSpec
 	TimeServerSpecs() []network.TimeServerSpecSpec
+	OperatorSpecs() []network.OperatorSpecSpec
 }
