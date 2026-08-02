@@ -147,6 +147,11 @@ func (vip *VIP) TimeServerSpecs() []network.TimeServerSpecSpec {
 	return nil
 }
 
+// OperatorSpecs implements Operator interface.
+func (d *VIP) OperatorSpecs() []network.OperatorSpecSpec {
+	return nil
+}
+
 func (vip *VIP) etcdElectionKey() string {
 	return fmt.Sprintf("%s:vip:election:%s", constants.EtcdRootTalosKey, vip.sharedIP.String())
 }

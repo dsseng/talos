@@ -83,6 +83,10 @@ func (ctrl *OperatorSpecController) Outputs() []controller.Output {
 			Type: network.TimeServerSpecType,
 			Kind: controller.OutputShared,
 		},
+		{
+			Type: network.OperatorSpecType,
+			Kind: controller.OutputShared,
+		},
 	}
 }
 
@@ -362,6 +366,23 @@ func (ctrl *OperatorSpecController) reconcileOperatorOutputs(ctx context.Context
 				),
 				func(r *network.TimeServerSpec) error {
 					*r.TypedSpec() = timeserverSpec
+
+					return nil
+				},
+			); err != nil {
+				return fmt.Errorf("error applying spec: %w", err)
+			}
+		}
+
+		for _, operatorSpec := range op.Operator.OperatorSpecs() {
+			if err := safe.WriterModify(
+				ctx, r,
+				network.NewOperatorSpec(
+					network.ConfigNamespaceName,
+					fmt.Sprintf("%s/%s", op.Operator.Prefix(), network.OperatorID(operatorSpec)),
+				),
+				func(r *network.OperatorSpec) error {
+					*r.TypedSpec() = operatorSpec
 
 					return nil
 				},
