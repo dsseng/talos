@@ -29,4 +29,6 @@ type Operator interface {
 	//
 	// Unlike the specs above, these are published as a status resource for the link, not as a configuration layer.
 	LLDPNeighborSpecs() []network.LLDPNeighborSpec
+
+	OperatorSpecs() []network.OperatorSpecSpec
 }

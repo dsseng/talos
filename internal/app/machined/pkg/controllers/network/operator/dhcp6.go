@@ -152,6 +152,11 @@ func (d *DHCP6) LLDPNeighborSpecs() []network.LLDPNeighborSpec {
 	return nil
 }
 
+// OperatorSpecs implements Operator interface.
+func (d *DHCP6) OperatorSpecs() []network.OperatorSpecSpec {
+	return nil
+}
+
 func (d *DHCP6) parseReply(reply *dhcpv6.Message) (leaseTime time.Duration) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

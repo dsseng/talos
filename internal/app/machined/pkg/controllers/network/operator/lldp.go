@@ -243,6 +243,11 @@ func (o *LLDP) TimeServerSpecs() []network.TimeServerSpecSpec {
 	return nil
 }
 
+// OperatorSpecs implements Operator interface.
+func (d *VIP) OperatorSpecs() []network.OperatorSpecSpec {
+	return nil
+}
+
 // LLDPNeighborSpecs implements Operator interface.
 //
 // The result is independently owned and sorted by the neighbors' protocol identity.

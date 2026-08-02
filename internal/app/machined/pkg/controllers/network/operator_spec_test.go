@@ -51,6 +51,7 @@ type mockOperator struct {
 	resolvers   []network.ResolverSpecSpec
 	timeservers []network.TimeServerSpecSpec
 	lldp        []network.LLDPNeighborSpec
+	operators   []network.OperatorSpecSpec
 }
 
 var (
@@ -142,6 +143,13 @@ func (mock *mockOperator) LLDPNeighborSpecs() []network.LLDPNeighborSpec {
 	defer mock.mu.Unlock()
 
 	return mock.lldp
+}
+
+func (mock *mockOperator) OperatorSpecs() []network.OperatorSpecSpec {
+	mock.mu.Lock()
+	defer mock.mu.Unlock()
+
+	return mock.operators
 }
 
 func (suite *OperatorSpecSuite) newOperator(_ *zap.Logger, spec *network.OperatorSpecSpec) operator.Operator {
