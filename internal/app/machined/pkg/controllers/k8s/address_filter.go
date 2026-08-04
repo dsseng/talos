@@ -7,7 +7,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"slices"
 
 	"github.com/cosi-project/runtime/pkg/controller"
@@ -94,18 +93,14 @@ func (ctrl *AddressFilterController) Run(ctx context.Context, r controller.Runti
 
 		r.StartTrackingOutputs()
 
-		if cfg != nil {
-			var podCIDRs, serviceCIDRs []netip.Prefix
+		if cfg != nil && cfg.Config().K8sNetworkConfig() != nil {
+			k8sNetwork := cfg.Config().K8sNetworkConfig()
 
-			if cfg.Config().K8sNetworkConfig() != nil {
-				k8sNetwork := cfg.Config().K8sNetworkConfig()
+			podCIDRs := k8sNetwork.PodCIDRs()
+			serviceCIDRs := k8sNetwork.ServiceCIDRs()
 
-				podCIDRs = slices.Clone(k8sNetwork.PodCIDRs())
-				serviceCIDRs = slices.Clone(k8sNetwork.ServiceCIDRs())
-
-				if nodeStatus != nil {
-					podCIDRs = slices.Concat(podCIDRs, nodeStatus.TypedSpec().PodCIDRs)
-				}
+			if nodeStatus != nil {
+				podCIDRs = append(podCIDRs, nodeStatus.TypedSpec().PodCIDRs...)
 			}
 
 			if err = safe.WriterModify(ctx, r, network.NewNodeAddressFilter(network.NamespaceName, k8s.NodeAddressFilterNoK8s), func(r *network.NodeAddressFilter) error {
@@ -117,17 +112,7 @@ func (ctrl *AddressFilterController) Run(ctx context.Context, r controller.Runti
 			}
 
 			if err = safe.WriterModify(ctx, r, network.NewNodeAddressFilter(network.NamespaceName, k8s.NodeAddressFilterOnlyK8s), func(r *network.NodeAddressFilter) error {
-				if len(podCIDRs)+len(serviceCIDRs) > 0 {
-					r.TypedSpec().IncludeSubnets = slices.Concat(podCIDRs, serviceCIDRs)
-					r.TypedSpec().ExcludeSubnets = nil
-				} else {
-					// if k8s is disabled, we want to exclude all networks from "k8s-only" filter
-					r.TypedSpec().IncludeSubnets = nil
-					r.TypedSpec().ExcludeSubnets = []netip.Prefix{
-						netip.MustParsePrefix("0.0.0.0/0"),
-						netip.MustParsePrefix("::/0"),
-					}
-				}
+				r.TypedSpec().IncludeSubnets = slices.Concat(podCIDRs, serviceCIDRs)
 
 				return nil
 			}); err != nil {

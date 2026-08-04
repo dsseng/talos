@@ -72,7 +72,6 @@ type Common struct {
 	SkipInjectingConfig         bool
 	SkipUnattendedInstallConfig bool
 	TalosVersion                string
-	SkipEtcdK8sConfig           bool
 	EnableKubeSpan              bool
 	EnableClusterDiscovery      bool
 	ConfigPatch                 []string

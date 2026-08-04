@@ -25,7 +25,6 @@ import (
 	"github.com/siderolabs/talos/pkg/machinery/resources/k8s"
 	"github.com/siderolabs/talos/pkg/machinery/resources/network"
 	"github.com/siderolabs/talos/pkg/machinery/resources/runtime"
-	"github.com/siderolabs/talos/pkg/machinery/resources/secrets"
 	timeres "github.com/siderolabs/talos/pkg/machinery/resources/time"
 	"github.com/siderolabs/talos/pkg/machinery/resources/v1alpha1"
 )
@@ -87,15 +86,13 @@ func (suite *MachineStatusSuite) TestReconcile() {
 
 	suite.assertMachineStatus(runtime.MachineStageBooting, false, []string{"time", "network", "services"})
 
-	suite.Create(secrets.NewKubelet(secrets.KubeletID))
-
 	machineType := config.NewMachineType()
 	machineType.SetMachineType(machine.TypeControlPlane)
-	suite.Create(machineType)
+	suite.Require().NoError(suite.State().Create(suite.Ctx(), machineType))
 
 	timeStatus := timeres.NewStatus()
 	timeStatus.TypedSpec().Synced = true
-	suite.Create(timeStatus)
+	suite.Require().NoError(suite.State().Create(suite.Ctx(), timeStatus))
 
 	suite.eventCh <- v1alpha1runtime.EventInfo{
 		Event: v1alpha1runtime.Event{
@@ -122,7 +119,7 @@ func (suite *MachineStatusSuite) TestReconcile() {
 	networkStatus.TypedSpec().ConnectivityReady = true
 	networkStatus.TypedSpec().EtcFilesReady = true
 	networkStatus.TypedSpec().HostnameReady = true
-	suite.Create(networkStatus)
+	suite.Require().NoError(suite.State().Create(suite.Ctx(), networkStatus))
 
 	suite.assertMachineStatus(runtime.MachineStageRunning, false, []string{"services"})
 
@@ -130,24 +127,24 @@ func (suite *MachineStatusSuite) TestReconcile() {
 		serviceStatus := v1alpha1.NewService(service)
 		serviceStatus.TypedSpec().Running = true
 		serviceStatus.TypedSpec().Healthy = true
-		suite.Create(serviceStatus)
+		suite.Require().NoError(suite.State().Create(suite.Ctx(), serviceStatus))
 	}
 
 	suite.assertMachineStatus(runtime.MachineStageRunning, true, nil)
 
 	nodename := k8s.NewNodename(k8s.NamespaceName, k8s.NodenameID)
 	nodename.TypedSpec().Nodename = "test"
-	suite.Create(nodename)
+	suite.Require().NoError(suite.State().Create(suite.Ctx(), nodename))
 
 	suite.assertMachineStatus(runtime.MachineStageRunning, false, []string{"nodeReady"})
 
 	nodeStatus := k8s.NewNodeStatus(k8s.NamespaceName, "test")
-	suite.Create(nodeStatus)
+	suite.Require().NoError(suite.State().Create(suite.Ctx(), nodeStatus))
 
 	suite.assertMachineStatus(runtime.MachineStageRunning, false, []string{"nodeReady"})
 
 	nodeStatus.TypedSpec().NodeReady = true
-	suite.Update(nodeStatus)
+	suite.Require().NoError(suite.State().Update(suite.Ctx(), nodeStatus))
 
 	suite.assertMachineStatus(runtime.MachineStageRunning, true, nil)
 

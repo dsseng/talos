@@ -349,8 +349,6 @@ func StartDashboard(_ runtime.Sequence, _ any) (runtime.TaskExecutionFunc, strin
 }
 
 // StartAllServices represents the task to start the system services.
-//
-//nolint:gocyclo
 func StartAllServices(runtime.Sequence, any) (runtime.TaskExecutionFunc, string) {
 	return func(ctx context.Context, logger *log.Logger, r runtime.Runtime) (err error) {
 		// nb: Treating the beginning of "service starts" as the activate event for a normal
@@ -367,6 +365,13 @@ func StartAllServices(runtime.Sequence, any) (runtime.TaskExecutionFunc, string)
 
 		svcs := system.Services(r)
 
+		// Load kubelet and CRI, but don't start them; their service controllers
+		// will start them once their rendered configuration is ready.
+		svcs.Load(
+			&services.Kubelet{},
+			&services.CRI{},
+		)
+
 		serviceList := []system.Service{}
 
 		// When workload isolation is enabled (SecurityProfileConfig), the sandbox
@@ -376,27 +381,19 @@ func StartAllServices(runtime.Sequence, any) (runtime.TaskExecutionFunc, string)
 			serviceList = append(serviceList, &services.Sandboxd{})
 		}
 
-		shouldStartEtcd := r.Config() != nil && r.Config().Cluster() != nil && r.Config().Cluster().Etcd().CA() != nil
-
 		switch t := r.Config().Machine().Type(); t {
 		case machine.TypeInit:
 			serviceList = append(
 				serviceList,
 				&services.Trustd{},
+				&services.Etcd{Bootstrap: true},
 			)
-
-			if shouldStartEtcd {
-				serviceList = append(serviceList, &services.Etcd{Bootstrap: true})
-			}
 		case machine.TypeControlPlane:
 			serviceList = append(
 				serviceList,
 				&services.Trustd{},
+				&services.Etcd{},
 			)
-
-			if shouldStartEtcd {
-				serviceList = append(serviceList, &services.Etcd{})
-			}
 		case machine.TypeWorker:
 			// nothing
 		case machine.TypeUnknown:

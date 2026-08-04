@@ -106,11 +106,6 @@ func (s *APIBootstrapper) Bootstrap(ctx context.Context, out io.Writer) error {
 			// connection timeout
 			case strings.Contains(err.Error(), "error reading from server: EOF"):
 				return retry.ExpectedError(err)
-			case statusCode == codes.InvalidArgument:
-				// no etcd, skipping bootstrap
-				fmt.Fprintln(out, "skipping bootstrap, no etcd configured")
-
-				return nil
 			}
 
 			return err

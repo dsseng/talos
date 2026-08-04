@@ -778,10 +778,6 @@ type clusterOptions struct {
 	SourceVersion        string
 	SourceK8sVersion     string
 
-	// If set, sets the machine config version contract, otherwise
-	// version contract is derived from the SourceVersion.
-	VersionContract *config.VersionContract
-
 	WithEncryption          bool
 	WithTrustedBoot         bool
 	WithBios                bool
@@ -868,12 +864,8 @@ func (suite *BaseSuite) setupCluster(options clusterOptions) {
 
 	suite.controlPlaneEndpoint = suite.provisioner.GetExternalKubernetesControlPlaneEndpoint(request.Network, constants.DefaultControlPlanePort)
 
-	versionContract := options.VersionContract
-
-	if versionContract == nil {
-		versionContract, err = config.ParseContractFromVersion(options.SourceVersion)
-		suite.Require().NoError(err)
-	}
+	versionContract, err := config.ParseContractFromVersion(options.SourceVersion)
+	suite.Require().NoError(err)
 
 	genOptions, bundleOptions := suite.provisioner.GenOptions(request.Network, versionContract)
 

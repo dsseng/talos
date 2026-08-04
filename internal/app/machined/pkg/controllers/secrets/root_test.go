@@ -42,11 +42,8 @@ type RootSuite struct {
 	ctest.DefaultSuite
 }
 
-func (suite *RootSuite) genConfig(controlplane bool, versionContract *talosconfig.VersionContract) talosconfig.Config {
-	input, err := generate.NewInput(
-		"test-cluster", "http://localhost:6443", "1.28.0",
-		generate.WithVersionContract(versionContract),
-	)
+func (suite *RootSuite) genConfig(controlplane bool) talosconfig.Config {
+	input, err := generate.NewInput("test-cluster", "http://localhost:6443", "1.28.0")
 	suite.Require().NoError(err)
 
 	var cfg talosconfig.Provider
@@ -66,7 +63,7 @@ func (suite *RootSuite) genConfig(controlplane bool, versionContract *talosconfi
 }
 
 func (suite *RootSuite) TestReconcileControlPlane() {
-	cfg := suite.genConfig(true, talosconfig.TalosVersionCurrent)
+	cfg := suite.genConfig(true)
 
 	rtestutils.AssertResources(
 		suite.Ctx(), suite.T(), suite.State(), []resource.ID{secrets.EtcdRootID},
@@ -104,33 +101,8 @@ func (suite *RootSuite) TestReconcileControlPlane() {
 	)
 }
 
-func (suite *RootSuite) TestReconcileControlPlaneNoK8sEtcd() {
-	cfg := suite.genConfig(
-		true,
-		talosconfig.TalosVersionCurrent.DisableEtcd().DisableKubernetes(),
-	)
-
-	rtestutils.AssertResources(
-		suite.Ctx(), suite.T(), suite.State(), []resource.ID{secrets.OSRootID},
-		func(res *secrets.OSRoot, asrt *assert.Assertions) {
-			asrt.Equal(res.TypedSpec().IssuingCA, cfg.Machine().Security().IssuingCA())
-			asrt.Equal(
-				[]*x509.PEMEncodedCertificate{
-					{
-						Crt: cfg.Machine().Security().IssuingCA().Crt,
-					},
-				},
-				res.TypedSpec().AcceptedCAs,
-			)
-		},
-	)
-
-	rtestutils.AssertNoResource[*secrets.EtcdRoot](suite.Ctx(), suite.T(), suite.State(), secrets.EtcdRootID)
-	rtestutils.AssertNoResource[*secrets.KubernetesRoot](suite.Ctx(), suite.T(), suite.State(), secrets.KubernetesRootID)
-}
-
 func (suite *RootSuite) TestReconcileWorker() {
-	cfg := suite.genConfig(false, talosconfig.TalosVersionCurrent)
+	cfg := suite.genConfig(false)
 
 	rtestutils.AssertResources(
 		suite.Ctx(), suite.T(), suite.State(), []resource.ID{secrets.OSRootID},
@@ -147,6 +119,6 @@ func (suite *RootSuite) TestReconcileWorker() {
 		},
 	)
 
-	rtestutils.AssertNoResource[*secrets.EtcdRoot](suite.Ctx(), suite.T(), suite.State(), secrets.EtcdRootID)
-	rtestutils.AssertNoResource[*secrets.KubernetesRoot](suite.Ctx(), suite.T(), suite.State(), secrets.KubernetesRootID)
+	rtestutils.AssertNoResource[*secrets.Etcd](suite.Ctx(), suite.T(), suite.State(), secrets.EtcdRootID)
+	rtestutils.AssertNoResource[*secrets.Kubernetes](suite.Ctx(), suite.T(), suite.State(), secrets.KubernetesRootID)
 }

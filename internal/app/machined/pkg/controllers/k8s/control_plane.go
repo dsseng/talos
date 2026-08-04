@@ -67,6 +67,14 @@ func controlplaneMapFunc[Output generic.ResourceWithRD](output Output, extraChec
 
 // ControlPlaneAdmissionControlController manages k8s.AdmissionControlConfig based on configuration.
 type ControlPlaneAdmissionControlController = transform.Controller[*config.MachineConfig, *k8s.AdmissionControlConfig]
+type ControlPlaneAuditPolicyController = transform.Controller[*config.MachineConfig, *k8s.AuditPolicyConfig]
+type ControlPlaneAuthenticationController = transform.Controller[*config.MachineConfig, *k8s.AuthenticationConfig]
+type ControlPlaneAuthorizationController = transform.Controller[*config.MachineConfig, *k8s.AuthorizationConfig]
+type ControlPlaneAPIServerController = transform.Controller[*config.MachineConfig, *k8s.APIServerConfig]
+type ControlPlaneControllerManagerController = transform.Controller[*config.MachineConfig, *k8s.ControllerManagerConfig]
+type ControlPlaneSchedulerController = transform.Controller[*config.MachineConfig, *k8s.SchedulerConfig]
+type ControlPlaneBootstrapManifestsController = transform.Controller[*config.MachineConfig, *k8s.BootstrapManifestsConfig]
+type ControlPlaneExtraManifestsController = transform.Controller[*config.MachineConfig, *k8s.ExtraManifestsConfig]
 
 // NewControlPlaneAdmissionControlController instantiates the controller.
 func NewControlPlaneAdmissionControlController() *ControlPlaneAdmissionControlController {
@@ -96,7 +104,6 @@ func NewControlPlaneAdmissionControlController() *ControlPlaneAdmissionControlCo
 }
 
 // ControlPlaneAuditPolicyController manages k8s.AuditPolicyConfig based on configuration.
-type ControlPlaneAuditPolicyController = transform.Controller[*config.MachineConfig, *k8s.AuditPolicyConfig]
 
 // NewControlPlaneAuditPolicyController instantiates the controller.
 func NewControlPlaneAuditPolicyController() *ControlPlaneAuditPolicyController {
@@ -121,7 +128,6 @@ func NewControlPlaneAuditPolicyController() *ControlPlaneAuditPolicyController {
 }
 
 // ControlPlaneAuthenticationController manages k8s.AuthenticationConfig based on configuration.
-type ControlPlaneAuthenticationController = transform.Controller[*config.MachineConfig, *k8s.AuthenticationConfig]
 
 // NewControlPlaneAuthenticationController instantiates the controller.
 func NewControlPlaneAuthenticationController() *ControlPlaneAuthenticationController {
@@ -163,7 +169,6 @@ func NewControlPlaneAuthenticationController() *ControlPlaneAuthenticationContro
 }
 
 // ControlPlaneAuthorizationController manages k8s.AuthorizationConfig based on configuration.
-type ControlPlaneAuthorizationController = transform.Controller[*config.MachineConfig, *k8s.AuthorizationConfig]
 
 // NewControlPlaneAuthorizationController instantiates the controller.
 func NewControlPlaneAuthorizationController() *ControlPlaneAuthorizationController {
@@ -222,7 +227,6 @@ func NewControlPlaneAuthorizationController() *ControlPlaneAuthorizationControll
 }
 
 // ControlPlaneAPIServerController manages k8s.APIServerConfig based on configuration.
-type ControlPlaneAPIServerController = transform.Controller[*config.MachineConfig, *k8s.APIServerConfig]
 
 // NewControlPlaneAPIServerController instantiates the controller.
 func NewControlPlaneAPIServerController() *ControlPlaneAPIServerController {
@@ -283,7 +287,6 @@ func NewControlPlaneAPIServerController() *ControlPlaneAPIServerController {
 }
 
 // ControlPlaneControllerManagerController manages k8s.ControllerManagerConfig based on configuration.
-type ControlPlaneControllerManagerController = transform.Controller[*config.MachineConfig, *k8s.ControllerManagerConfig]
 
 // NewControlPlaneControllerManagerController instantiates the controller.
 func NewControlPlaneControllerManagerController() *ControlPlaneControllerManagerController {
@@ -335,7 +338,6 @@ func NewControlPlaneControllerManagerController() *ControlPlaneControllerManager
 }
 
 // ControlPlaneSchedulerController manages k8s.SchedulerConfig based on configuration.
-type ControlPlaneSchedulerController = transform.Controller[*config.MachineConfig, *k8s.SchedulerConfig]
 
 // NewControlPlaneSchedulerController instantiates the controller.
 func NewControlPlaneSchedulerController() *ControlPlaneSchedulerController {
@@ -346,9 +348,6 @@ func NewControlPlaneSchedulerController() *ControlPlaneSchedulerController {
 				k8s.NewSchedulerConfig(k8s.SchedulerConfigID),
 				func(machineConfig *config.MachineConfig) bool {
 					return machineConfig.Config().K8sSchedulerConfig() != nil
-				},
-				func(machineConfig *config.MachineConfig) bool {
-					return machineConfig.Config().K8sClusterConfig() != nil
 				},
 			),
 			TransformFunc: func(ctx context.Context, r controller.Reader, logger *zap.Logger, machineConfig *config.MachineConfig, res *k8s.SchedulerConfig) error {
@@ -377,7 +376,6 @@ func NewControlPlaneSchedulerController() *ControlPlaneSchedulerController {
 }
 
 // ControlPlaneBootstrapManifestsController manages k8s.BootstrapManifestsConfig based on configuration.
-type ControlPlaneBootstrapManifestsController = transform.Controller[*config.MachineConfig, *k8s.BootstrapManifestsConfig]
 
 // NewControlPlaneBootstrapManifestsController instantiates the controller.
 //
@@ -508,7 +506,6 @@ func NewControlPlaneBootstrapManifestsController() *ControlPlaneBootstrapManifes
 }
 
 // ControlPlaneExtraManifestsController manages k8s.ExtraManifestsConfig based on configuration.
-type ControlPlaneExtraManifestsController = transform.Controller[*config.MachineConfig, *k8s.ExtraManifestsConfig]
 
 // NewControlPlaneExtraManifestsController instantiates the controller.
 func NewControlPlaneExtraManifestsController() *ControlPlaneExtraManifestsController {

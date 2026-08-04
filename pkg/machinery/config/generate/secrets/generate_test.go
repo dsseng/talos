@@ -43,18 +43,12 @@ func TestNewBundle(t *testing.T) {
 			name:            "current",
 			versionContract: config.TalosVersionCurrent,
 		},
-		{
-			name:            "current + no k8s + no etcd",
-			versionContract: config.TalosVersionCurrent.DisableKubernetes().DisableEtcd(),
-		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			bundle, err := secrets.NewBundle(secrets.NewFixedClock(time.Now()), test.versionContract)
+			_, err := secrets.NewBundle(secrets.NewFixedClock(time.Now()), test.versionContract)
 			require.NoError(t, err)
-
-			require.NoError(t, bundle.Validate(test.versionContract))
 		})
 	}
 }
