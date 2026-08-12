@@ -296,14 +296,9 @@ func listBGPImportTestPath(t *testing.T, server *gobgpsrv.BgpServer, prefix neti
 
 	var result *apiutil.Path
 
-	family := bgppacket.RF_IPv4_UC
-	if prefix.Addr().Is6() {
-		family = bgppacket.RF_IPv6_UC
-	}
-
 	require.NoError(t, server.ListPath(apiutil.ListPathRequest{
 		TableType: gobgpapi.TableType_TABLE_TYPE_GLOBAL,
-		Family:    family,
+		Family:    bgppacket.RF_IPv4_UC,
 	}, func(nlri bgppacket.NLRI, paths []*apiutil.Path) {
 		if nlri.String() != prefix.String() {
 			return

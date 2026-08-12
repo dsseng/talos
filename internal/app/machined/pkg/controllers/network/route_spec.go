@@ -131,17 +131,6 @@ func netipPrefixBitsCorrected(p netip.Prefix) int {
 	return p.Bits()
 }
 
-func routePriorityMatches(actual uint32, expected *network.RouteSpecSpec) bool {
-	if actual == expected.Priority {
-		return true
-	}
-
-	// Linux assigns metric 1024 to IPv6 routes added without an explicit metric.
-	return expected.Family == nethelpers.FamilyInet6 &&
-		expected.Priority == 0 &&
-		actual == network.DefaultRouteMetric
-}
-
 func findMatchingRoutes(existingRoutes []rtnetlink.RouteMessage, expected *network.RouteSpecSpec) []*rtnetlink.RouteMessage {
 	var result []*rtnetlink.RouteMessage //nolint:prealloc
 
@@ -169,7 +158,7 @@ func findMatchingRoutes(existingRoutes []rtnetlink.RouteMessage, expected *netwo
 			continue
 		}
 
-		if !routePriorityMatches(route.Attributes.Priority, expected) {
+		if route.Attributes.Priority != expected.Priority {
 			continue
 		}
 
