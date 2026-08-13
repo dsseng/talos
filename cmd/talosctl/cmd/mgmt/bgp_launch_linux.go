@@ -158,15 +158,16 @@ func fabricReconcileRoutes(
 		}, func(prefix bgppacket.NLRI, paths []*apiutil.Path) {
 			dst, parseErr := netip.ParsePrefix(prefix.String())
 			if parseErr != nil {
+				fmt.Println("Parse failed", prefix.String())
 				return
 			}
 
 			// The provisioner host only needs direct access to node identities and advertised VIPs.
 			// Keep broader workload routes in the fabric RIB without replacing an unrelated host
 			// route such as the provisioner's own Kubernetes PodCIDR.
-			if !fabricHostRouteEligible(dst) {
-				return
-			}
+			// if !fabricHostRouteEligible(dst) {
+			// 	return
+			// }
 
 			for _, path := range paths {
 				// only install routes learned from the node, skipping our own originated prefixes.
