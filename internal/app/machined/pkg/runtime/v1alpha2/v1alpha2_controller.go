@@ -161,7 +161,9 @@ func (ctrl *Controller) Run(ctx context.Context, drainer *runtime.Drainer) error
 		&block.DiscoveredVolumesStatusController{},
 		&block.DiscoveryController{},
 		&block.DisksController{},
-		&block.MountController{},
+		&block.MountController{
+			V1Alpha1Logging: ctrl.v1alpha1Runtime.Logging(),
+		},
 		&block.MountRequestController{},
 		&block.MountStatusController{},
 		&block.SwapStatusController{

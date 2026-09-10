@@ -315,12 +315,19 @@ var promotableVolumeDefinitions = []struct {
 		Path:         constants.CRIContainerdDataPath,
 		SELinuxLabel: constants.CRIContainerdDataSELinuxLabel,
 		Mode:         0o000,
+		// The containerd data tree can be large (image/layer content) and is normally already
+		// correctly labeled, so this only pays for a full walk when the boot-time spot-check
+		// (see selinux.NeedsRelabel) actually finds a mismatch - e.g. after an upgrade from a
+		// version without SELinux, or a reboot with SELinux newly enabled.
+		Recursive: true,
 	},
 	{
 		ID:           constants.KubeletDataVolumeID,
 		Path:         constants.KubeletDataPath,
 		SELinuxLabel: constants.KubeletDataSELinuxLabel,
 		Mode:         0o700,
+		// See the comment on CRIContainerdVolumeID above: spot-check-gated, not unconditional.
+		Recursive: true,
 	},
 	{
 		ID:           constants.LogVolumeID,
