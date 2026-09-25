@@ -104,6 +104,10 @@ func getCreateCmd(cmdName string, hidden bool) *cobra.Command {
 		badRTCFlag                      = "bad-rtc"
 		extraBootKernelArgsFlag         = "extra-boot-kernel-args"
 		dhcpSkipHostnameFlag            = "disable-dhcp-hostname"
+		ipv6RAFlag                      = "ipv6-ra"
+		ipv6RAManagedFlag               = "ipv6-ra-managed"
+		ipv6RAAutonomousFlag            = "ipv6-ra-autonomous"
+		ipv6RARDNSSFlag                 = "ipv6-ra-rdnss"
 		networkChaosFlag                = "with-network-chaos"
 		jitterFlag                      = "with-network-jitter"
 		latencyFlag                     = "with-network-latency"
@@ -252,6 +256,10 @@ func getCreateCmd(cmdName string, hidden bool) *cobra.Command {
 		qemu.BoolVar(&qOps.BadRTC, badRTCFlag, qOps.BadRTC, "launch VM with bad RTC state")
 		qemu.StringVar(&qOps.ExtraBootKernelArgs, extraBootKernelArgsFlag, qOps.ExtraBootKernelArgs, "add extra kernel args to the initial boot from vmlinuz and initramfs")
 		qemu.BoolVar(&qOps.DHCPSkipHostname, dhcpSkipHostnameFlag, qOps.DHCPSkipHostname, "skip announcing hostname via DHCP")
+		qemu.BoolVar(&qOps.IPv6RA, ipv6RAFlag, qOps.IPv6RA, "send IPv6 Router Advertisements on the bridge interface (only with IPv6 enabled)")
+		qemu.BoolVar(&qOps.IPv6RAManaged, ipv6RAManagedFlag, qOps.IPv6RAManaged, "set the managed (M) and other configuration (O) flags in IPv6 Router Advertisements")
+		qemu.BoolVar(&qOps.IPv6RAAutonomous, ipv6RAAutonomousFlag, qOps.IPv6RAAutonomous, "set the autonomous (A) flag on prefixes in IPv6 Router Advertisements (SLAAC)")
+		qemu.BoolVar(&qOps.IPv6RARDNSS, ipv6RARDNSSFlag, qOps.IPv6RARDNSS, "advertise IPv6 nameservers via the RDNSS option in IPv6 Router Advertisements")
 		qemu.BoolVar(&qOps.NetworkChaos, networkChaosFlag, qOps.NetworkChaos, "enable to use network chaos parameters")
 		qemu.DurationVar(&qOps.Jitter, jitterFlag, qOps.Jitter, "specify jitter on the bridge interface")
 		qemu.DurationVar(&qOps.Latency, latencyFlag, qOps.Latency, "specify latency on the bridge interface")

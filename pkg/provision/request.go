@@ -96,6 +96,9 @@ type NetworkRequest struct {
 	// DHCP options
 	DHCPSkipHostname bool
 
+	// IPv6 Router Advertisement options (qemu).
+	RouterAdvertisement RouterAdvertisementConfig
+
 	// Docker-specific parameters.
 	DockerDisableIPv6 bool
 
@@ -122,6 +125,20 @@ type DHCPRecord struct {
 	IP      netip.Prefix
 	Gateway netip.Addr
 	Name    string
+}
+
+// RouterAdvertisementConfig describes IPv6 Router Advertisements sent on the cluster bridge.
+//
+// Advertisements are sent only if enabled and the network has an IPv6 CIDR.
+// The on-link prefixes are the IPv6 CIDRs of the network, and the host is advertised as the default router.
+type RouterAdvertisementConfig struct {
+	Enabled bool
+	// Managed sets the M (and O) flags, telling hosts to use DHCPv6.
+	Managed bool
+	// Autonomous sets the A flag on the advertised prefixes, allowing hosts to use SLAAC.
+	Autonomous bool
+	// RDNSS advertises the IPv6 nameservers of the network via the RDNSS option.
+	RDNSS bool
 }
 
 // NodeRequests is a list of NodeRequest.

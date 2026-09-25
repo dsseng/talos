@@ -134,6 +134,10 @@ type Qemu struct {
 	BadRTC                    bool
 	ExtraBootKernelArgs       string
 	DHCPSkipHostname          bool
+	IPv6RA                    bool
+	IPv6RAManaged             bool
+	IPv6RAAutonomous          bool
+	IPv6RARDNSS               bool
 	NetworkChaos              bool
 	Jitter                    time.Duration
 	Latency                   time.Duration
@@ -215,6 +219,9 @@ func GetQemu() Qemu {
 
 	return Qemu{
 		PreallocateDisks:  false,
+		IPv6RA:            true,
+		IPv6RAManaged:     true,
+		IPv6RARDNSS:       true,
 		BootloaderEnabled: true,
 		UefiEnabled:       true,
 		DiskBlockSize:     512,

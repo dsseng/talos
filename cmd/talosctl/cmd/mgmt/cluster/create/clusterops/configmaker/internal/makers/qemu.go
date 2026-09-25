@@ -330,6 +330,12 @@ func (m *Qemu) ModifyClusterRequest() error {
 	m.ClusterRequest.Network.Nameservers = nameserverIPs
 	m.ClusterRequest.Network.NoMasqueradeCIDRs = noMasqueradeCIDRs
 	m.ClusterRequest.Network.DHCPSkipHostname = m.EOps.DHCPSkipHostname
+	m.ClusterRequest.Network.RouterAdvertisement = provision.RouterAdvertisementConfig{
+		Enabled:    m.EOps.IPv6RA,
+		Managed:    m.EOps.IPv6RAManaged,
+		Autonomous: m.EOps.IPv6RAAutonomous,
+		RDNSS:      m.EOps.IPv6RARDNSS,
+	}
 	m.ClusterRequest.Network.NetworkChaos = m.EOps.NetworkChaos
 	m.ClusterRequest.Network.Jitter = m.EOps.Jitter
 	m.ClusterRequest.Network.Latency = m.EOps.Latency

@@ -176,6 +176,10 @@ talosctl cluster create dev [flags]
       --install-image string                     the installer image to use (default "factory.talos.dev/metal-installer/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:latest")
       --ipv4                                     enable IPv4 network in the cluster (default true)
       --ipv6                                     enable IPv6 network in the cluster
+      --ipv6-ra                                  send IPv6 Router Advertisements on the bridge interface (only with IPv6 enabled) (default true)
+      --ipv6-ra-autonomous                       set the autonomous (A) flag on prefixes in IPv6 Router Advertisements (SLAAC)
+      --ipv6-ra-managed                          set the managed (M) and other configuration (O) flags in IPv6 Router Advertisements (default true)
+      --ipv6-ra-rdnss                            advertise IPv6 nameservers via the RDNSS option in IPv6 Router Advertisements (default true)
       --ipxe-boot-script string                  iPXE boot script (URL) to use
       --iso-path string                          the ISO path to use for the initial boot
       --kubeprism-port int                       KubePrism port (set to 0 to disable) (default 7445)

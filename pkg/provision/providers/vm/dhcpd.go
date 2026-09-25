@@ -223,6 +223,12 @@ func netipAddrsToIPs(addrs []netip.Addr) []net.IP {
 	})
 }
 
+func ipv6Prefixes(cidrs []netip.Prefix) []netip.Prefix {
+	return xslices.Filter(cidrs, func(cidr netip.Prefix) bool {
+		return cidr.Addr().Is6()
+	})
+}
+
 type dhcpServer interface {
 	Serve() error
 	Close() error
@@ -306,6 +312,22 @@ func (p *Provisioner) startDHCPd(state *provision.State, clusterReq provision.Cl
 		"--addr", strings.Join(gatewayAddrs, ","),
 		"--interface", state.BridgeName,
 		"--ipxe-next-handler", clusterReq.IPXEBootScript,
+	}
+
+	if raPrefixes := ipv6Prefixes(clusterReq.Network.CIDRs); clusterReq.Network.RouterAdvertisement.Enabled && len(raPrefixes) > 0 {
+		raCfg := clusterReq.Network.RouterAdvertisement
+
+		args = append(args,
+			"--ipv6-ra-prefixes", strings.Join(xslices.Map(raPrefixes, netip.Prefix.String), ","),
+			"--ipv6-ra-managed="+strconv.FormatBool(raCfg.Managed),
+			"--ipv6-ra-autonomous="+strconv.FormatBool(raCfg.Autonomous),
+		)
+
+		if raCfg.RDNSS {
+			if rdnss := xslices.Filter(clusterReq.Network.Nameservers, netip.Addr.Is6); len(rdnss) > 0 {
+				args = append(args, "--ipv6-ra-rdnss", strings.Join(xslices.Map(rdnss, netip.Addr.String), ","))
+			}
+		}
 	}
 
 	cmd := exec.Command(clusterReq.SelfExecutable, args...) //nolint:noctx // runs in background
