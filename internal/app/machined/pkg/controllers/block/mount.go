@@ -130,6 +130,29 @@ func (ctrl *MountController) Run(ctx context.Context, r controller.Runtime, logg
 			},
 		)
 
+		// childVolumeNames maps a volume ID to the target-path basenames of every other system
+		// volume configured as its child (VolumeStatus.MountSpec.ParentID) - e.g. "seccomp" is a
+		// child of the kubelet data volume ("KUBELET"). Each name is resolved to an absolute path
+		// (relative to the parent's own mount target) in updateTargetSettings, and that path must
+		// never be touched by the parent's own recursive SELinux relabel pass: it carries its own,
+		// different label, and is checked/repaired independently as part of its own volume's mount
+		// handling.
+		//
+		// This is computed from VolumeStatus rather than MountStatus/MountRequest: a child's
+		// MountStatus does not exist yet the first time the parent's own mount activates (mounting
+		// the child requires the parent to already be mounted), so keying off mount state left this
+		// empty on that very first activation every boot - the spot-check then misread the child's
+		// own, legitimately different label as a mismatch on the parent, and triggered a spurious
+		// full relabel pass on every single boot. VolumeStatus carries MountSpec.ParentID
+		// independent of mount ordering, closing that race.
+		childVolumeNames := map[string][]string{}
+
+		for volumeStatus := range volumeStatuses.All() {
+			if parentID := volumeStatus.TypedSpec().MountSpec.ParentID; parentID != "" {
+				childVolumeNames[parentID] = append(childVolumeNames[parentID], volumeStatus.TypedSpec().MountSpec.TargetPath)
+			}
+		}
+
 		mountStatuses, err := safe.ReaderListAll[*block.MountStatus](ctx, r)
 		if err != nil {
 			return fmt.Errorf("failed to read mount statuses: %w", err)
@@ -144,19 +167,6 @@ func (ctrl *MountController) Run(ctx context.Context, r controller.Runtime, logg
 				return v.Metadata().ID(), v
 			},
 		)
-
-		// childMountTargets maps a mount ID to the absolute target paths of every other mount
-		// nested under it (i.e. whose ParentMountID points to it) - e.g. /var/lib/kubelet/seccomp
-		// is a child of the kubelet data mount. These are the paths a recursive SELinux relabel
-		// pass over the parent must never descend into: they carry their own, different label,
-		// and are checked/repaired independently as part of their own mount's handling.
-		childMountTargets := map[string][]string{}
-
-		for mountStatus := range mountStatuses.All() {
-			if parentID := mountStatus.TypedSpec().Spec.ParentMountID; parentID != "" {
-				childMountTargets[parentID] = append(childMountTargets[parentID], mountStatus.TypedSpec().Target)
-			}
-		}
 
 		mountRequests, err := safe.ReaderListAll[*block.MountRequest](ctx, r)
 		if err != nil {
@@ -255,9 +265,9 @@ func (ctrl *MountController) Run(ctx context.Context, r controller.Runtime, logg
 					rootPath = mountParentStatus.TypedSpec().Target
 				}
 
-				childTargets := childMountTargets[mountRequest.Metadata().ID()]
+				childNames := childVolumeNames[mountRequest.TypedSpec().VolumeID]
 
-				if err = ctrl.handleMountOperation(logger, childTargets, rootPath, mountSource, mountTarget, mountFilesystem, mountRequest, volumeStatus); err != nil {
+				if err = ctrl.handleMountOperation(logger, childNames, rootPath, mountSource, mountTarget, mountFilesystem, mountRequest, volumeStatus); err != nil {
 					return err
 				}
 
@@ -322,7 +332,7 @@ func (ctrl *MountController) tearDownMountStatus(ctx context.Context, r controll
 
 func (ctrl *MountController) handleMountOperation(
 	logger *zap.Logger,
-	childTargets []string,
+	childNames []string,
 	rootPath string,
 	mountSource, mountTarget string,
 	mountFilesystem block.FilesystemType,
@@ -331,10 +341,10 @@ func (ctrl *MountController) handleMountOperation(
 ) error {
 	switch volumeStatus.TypedSpec().Type {
 	case block.VolumeTypeDirectory:
-		return ctrl.handleDirectoryMountOperation(logger, childTargets, rootPath, mountTarget, mountRequest, volumeStatus)
+		return ctrl.handleDirectoryMountOperation(logger, childNames, rootPath, mountTarget, mountRequest, volumeStatus)
 
 	case block.VolumeTypeOverlay:
-		return ctrl.handleOverlayMountOperation(logger, childTargets, filepath.Join(rootPath, mountTarget), mountRequest, volumeStatus)
+		return ctrl.handleOverlayMountOperation(logger, childNames, filepath.Join(rootPath, mountTarget), mountRequest, volumeStatus)
 
 	case block.VolumeTypeSymlink:
 		return ctrl.handleSymlinkMountOperation(logger, rootPath, mountTarget, mountRequest, volumeStatus)
@@ -343,14 +353,14 @@ func (ctrl *MountController) handleMountOperation(
 		return fmt.Errorf("not implemented yet")
 
 	case block.VolumeTypeExternal:
-		return ctrl.handleDiskMountOperation(logger, childTargets, mountSource, filepath.Join(rootPath, mountTarget), mountFilesystem, mountRequest, volumeStatus)
+		return ctrl.handleDiskMountOperation(logger, childNames, mountSource, filepath.Join(rootPath, mountTarget), mountFilesystem, mountRequest, volumeStatus)
 
 	case block.VolumeTypeDisk, block.VolumeTypePartition:
 		if mountFilesystem == block.FilesystemTypeSwap {
 			return ctrl.handleSwapMountOperation(logger, mountSource, mountRequest, volumeStatus)
 		}
 
-		return ctrl.handleDiskMountOperation(logger, childTargets, mountSource, filepath.Join(rootPath, mountTarget), mountFilesystem, mountRequest, volumeStatus)
+		return ctrl.handleDiskMountOperation(logger, childNames, mountSource, filepath.Join(rootPath, mountTarget), mountFilesystem, mountRequest, volumeStatus)
 
 	default:
 		return fmt.Errorf("unsupported volume type %q", volumeStatus.TypedSpec().Type)
@@ -359,7 +369,7 @@ func (ctrl *MountController) handleMountOperation(
 
 func (ctrl *MountController) handleDirectoryMountOperation(
 	logger *zap.Logger,
-	childTargets []string,
+	childNames []string,
 	rootPath string,
 	target string,
 	mountRequest *block.MountRequest,
@@ -384,7 +394,7 @@ func (ctrl *MountController) handleDirectoryMountOperation(
 
 	if volumeStatus.TypedSpec().MountSpec.BindTarget != nil {
 		if err := ctrl.handleBindMountOperation(
-			logger, childTargets,
+			logger, childNames,
 			rootPath, target, *volumeStatus.TypedSpec().MountSpec.BindTarget,
 			mountRequest, volumeStatus,
 		); err != nil {
@@ -392,12 +402,12 @@ func (ctrl *MountController) handleDirectoryMountOperation(
 		}
 	}
 
-	return ctrl.updateTargetSettings(logger, childTargets, targetPath, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec)
+	return ctrl.updateTargetSettings(logger, childNames, targetPath, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec)
 }
 
 func (ctrl *MountController) handleBindMountOperation(
 	logger *zap.Logger,
-	childTargets []string,
+	childNames []string,
 	rootPath string,
 	source string,
 	bindTarget string,
@@ -447,7 +457,7 @@ func (ctrl *MountController) handleBindMountOperation(
 		}
 
 		if !mountRequest.TypedSpec().ReadOnly && !mountRequest.TypedSpec().Detached {
-			if err = ctrl.updateTargetSettings(logger, childTargets, mountTarget, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec); err != nil {
+			if err = ctrl.updateTargetSettings(logger, childNames, mountTarget, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec); err != nil {
 				manager.Unmount() //nolint:errcheck
 
 				return fmt.Errorf("failed to update target settings %q: %w", mountRequest.Metadata().ID(), err)
@@ -562,10 +572,16 @@ func (ctrl *MountController) handleSymlinkMountOperation(
 	return nil
 }
 
+// updateTargetSettings applies the mode/ownership/SELinux label expected by mountSpec to
+// targetPath. childNames are the target-path basenames of any nested system volumes mounted
+// directly under targetPath (see childVolumeNames in Run) - they are resolved here to absolute
+// paths and passed through to the SELinux relabel check/repair as paths that must never be
+// touched, since they carry their own, different label.
+//
 //nolint:gocyclo
 func (ctrl *MountController) updateTargetSettings(
 	logger *zap.Logger,
-	childTargets []string,
+	childNames []string,
 	targetPath string,
 	fstype block.FilesystemType,
 	mountSpec block.MountSpec,
@@ -613,6 +629,11 @@ func (ctrl *MountController) updateTargetSettings(
 	// SELinux labeling regime, e.g. after an upgrade from a pre-SELinux version, or a fresh boot
 	// after SELinux was enabled in the machine config (always a reboot, since the mode is fixed at
 	// UKI/cmdline build time) - without paying for a full tree walk when nothing is actually wrong.
+	childTargets := make([]string, len(childNames))
+	for i, name := range childNames {
+		childTargets[i] = filepath.Join(targetPath, name)
+	}
+
 	needsRelabel, err := selinux.NeedsRelabel(targetPath, mountSpec.SelinuxLabel, childTargets...)
 	if err != nil {
 		return fmt.Errorf("failed to check current label %q: %w", targetPath, err)
@@ -669,7 +690,7 @@ func (ctrl *MountController) getRelabelLog() io.Writer {
 //nolint:gocyclo,cyclop
 func (ctrl *MountController) handleDiskMountOperation(
 	logger *zap.Logger,
-	childTargets []string,
+	childNames []string,
 	mountSource, mountTarget string,
 	mountFilesystem block.FilesystemType,
 	mountRequest *block.MountRequest,
@@ -766,7 +787,7 @@ func (ctrl *MountController) handleDiskMountOperation(
 		}
 
 		if !mountRequest.TypedSpec().ReadOnly && !mountRequest.TypedSpec().Detached {
-			if err = ctrl.updateTargetSettings(logger, childTargets, mountTarget, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec); err != nil {
+			if err = ctrl.updateTargetSettings(logger, childNames, mountTarget, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec); err != nil {
 				manager.Unmount() //nolint:errcheck
 
 				return fmt.Errorf("failed to update target settings %q: %w", mountRequest.Metadata().ID(), err)
@@ -914,7 +935,7 @@ func updateMountSecurity(logger *zap.Logger, mountID, volumeID string, mountCtx 
 
 func (ctrl *MountController) handleOverlayMountOperation(
 	logger *zap.Logger,
-	childTargets []string,
+	childNames []string,
 	mountTarget string,
 	mountRequest *block.MountRequest,
 	volumeStatus *block.VolumeStatus,
@@ -951,7 +972,7 @@ func (ctrl *MountController) handleOverlayMountOperation(
 		return fmt.Errorf("failed to mount %q: %w", mountRequest.Metadata().ID(), err)
 	}
 
-	if err = ctrl.updateTargetSettings(logger, childTargets, mountTarget, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec); err != nil {
+	if err = ctrl.updateTargetSettings(logger, childNames, mountTarget, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec); err != nil {
 		manager.Unmount() //nolint:errcheck
 
 		return fmt.Errorf("failed to update target settings %q: %w", mountRequest.Metadata().ID(), err)
