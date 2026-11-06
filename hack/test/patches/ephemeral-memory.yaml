@@ -6,14 +6,14 @@
 apiVersion: v1alpha1
 kind: VolumeConfig
 name: STATE
-volumeType: memory
+volumeType: tmpfs
 ---
 apiVersion: v1alpha1
 kind: VolumeConfig
 name: EPHEMERAL
-volumeType: memory
+volumeType: tmpfs
 provisioning:
-  minSize: 3GiB
+  maxSize: 3GiB
 ---
 # Single-node ephemeral cluster: schedule workloads on the control plane.
 apiVersion: v1alpha1
