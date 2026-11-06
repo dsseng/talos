@@ -284,6 +284,7 @@ func manageStateConfigPresent(cfg configconfig.Config) func(vc *block.VolumeConf
 					UID:          0,
 					GID:          0,
 					Secure:       true,
+					NoExec:       true,
 					Parameters: []block.ParameterSpec{
 						{
 							Type:   block.FSParameterTypeStringValue,

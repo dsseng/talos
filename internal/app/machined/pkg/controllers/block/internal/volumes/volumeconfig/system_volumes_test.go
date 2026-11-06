@@ -311,6 +311,63 @@ func TestMemorySystemVolumes(t *testing.T) {
 		})
 	})
 
+	t.Run("STATE is a fixed size secure tmpfs", func(t *testing.T) {
+		t.Parallel()
+
+		transformer := volumeconfig.GetStateVolumeTransformer(nil, false, false)
+
+		resources, err := transformer(memoryVolumeConfig(constants.StatePartitionLabel, nil))
+		require.NoError(t, err)
+		require.Len(t, resources, 1)
+
+		testTransformFunc(t, resources[0].TransformFunc, func(t *testing.T, vc *block.VolumeConfig, err error) {
+			require.NoError(t, err)
+
+			assert.Equal(t, block.VolumeTypeTmpfs, vc.TypedSpec().Type)
+			assert.Equal(t, constants.StateMountPoint, vc.TypedSpec().Mount.TargetPath)
+			assert.Equal(t, strconv.FormatUint(quirks.New("").PartitionSizes().StateSize(), 10), sizeParameter(t, vc))
+
+			// STATE holds the machine configuration and secrets: it's as locked down as the partition it replaces
+			assert.True(t, vc.TypedSpec().Mount.Secure)
+			assert.True(t, vc.TypedSpec().Mount.NoExec)
+			assert.EqualValues(t, 0o700, vc.TypedSpec().Mount.FileMode)
+
+			assert.Empty(t, vc.TypedSpec().Provisioning)
+			assert.True(t, vc.TypedSpec().Locator.Match.IsZero())
+		})
+	})
+
+	t.Run("STATE tmpfs is as restricted as the STATE partition", func(t *testing.T) {
+		t.Parallel()
+
+		transformer := volumeconfig.GetStateVolumeTransformer(nil, false, false)
+
+		partition, err := transformer(container.NewV1Alpha1(&baseCfg))
+		require.NoError(t, err)
+
+		memory, err := transformer(memoryVolumeConfig(constants.StatePartitionLabel, nil))
+		require.NoError(t, err)
+
+		var partitionMount, memoryMount block.MountSpec
+
+		testTransformFunc(t, partition[0].TransformFunc, func(_ *testing.T, vc *block.VolumeConfig, err error) {
+			require.NoError(t, err)
+
+			partitionMount = vc.TypedSpec().Mount
+		})
+
+		testTransformFunc(t, memory[0].TransformFunc, func(_ *testing.T, vc *block.VolumeConfig, err error) {
+			require.NoError(t, err)
+
+			memoryMount = vc.TypedSpec().Mount
+		})
+
+		assert.Equal(t, partitionMount.Secure, memoryMount.Secure)
+		assert.Equal(t, partitionMount.NoExec, memoryMount.NoExec)
+		assert.Equal(t, partitionMount.FileMode, memoryMount.FileMode)
+		assert.Equal(t, partitionMount.SelinuxLabel, memoryMount.SelinuxLabel)
+	})
+
 	t.Run("EPHEMERAL without a size falls back to the minimum", func(t *testing.T) {
 		t.Parallel()
 

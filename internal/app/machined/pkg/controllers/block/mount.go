@@ -500,14 +500,32 @@ func (ctrl *MountController) handleMemoryMountOperation(
 			buildManagerOptions(mountRequest, volumeStatus),
 		)...)
 
+		// a detached mount has no target, so there is nothing to create
+		var mountPointCreated bool
+
+		if !mountRequest.TypedSpec().Detached {
+			var err error
+
+			mountPointCreated, err = mountops.CreateMountPoint(mountTarget, volumeStatus.TypedSpec().MountSpec)
+			if err != nil {
+				return fmt.Errorf("failed to create mount point for %q: %w", mountRequest.Metadata().ID(), err)
+			}
+		}
+
 		mountpoint, err := manager.Mount()
 		if err != nil {
+			if mountPointCreated {
+				mountops.RemoveMountPoint(logger, mountTarget)
+			}
+
 			return fmt.Errorf("failed to mount %q: %w", mountRequest.Metadata().ID(), err)
 		}
 
 		if !mountRequest.TypedSpec().ReadOnly && !mountRequest.TypedSpec().Detached {
 			if err = ctrl.updateTargetSettings(mountTarget, volumeStatus.TypedSpec().Filesystem, volumeStatus.TypedSpec().MountSpec); err != nil {
-				manager.Unmount() //nolint:errcheck
+				if manager.Unmount() == nil && mountPointCreated {
+					mountops.RemoveMountPoint(logger, mountTarget)
+				}
 
 				return fmt.Errorf("failed to update target settings %q: %w", mountRequest.Metadata().ID(), err)
 			}
@@ -520,16 +538,22 @@ func (ctrl *MountController) handleMemoryMountOperation(
 			zap.String("filesystem", "tmpfs"),
 			zap.Bool("read_only", mountRequest.TypedSpec().ReadOnly),
 			zap.Bool("secure", mountRequest.TypedSpec().Secure),
+			zap.Bool("no_exec", mountRequest.TypedSpec().NoExec),
 			zap.Bool("disable_access_time", mountRequest.TypedSpec().DisableAccessTime),
 			zap.Bool("detached", mountRequest.TypedSpec().Detached),
 		)
 
+		// the security options are applied by buildManagerOptions as part of the mount
 		mountCtx = &mountContext{
-			point:             mountpoint,
-			readOnly:          mountRequest.TypedSpec().ReadOnly,
-			disableAccessTime: mountRequest.TypedSpec().DisableAccessTime,
-			secure:            mountRequest.TypedSpec().Secure,
-			unmounter:         manager.Unmount,
+			point:               mountpoint,
+			readOnly:            mountRequest.TypedSpec().ReadOnly,
+			disableAccessTime:   mountRequest.TypedSpec().DisableAccessTime,
+			secure:              mountRequest.TypedSpec().Secure,
+			noExec:              mountRequest.TypedSpec().NoExec,
+			detached:            mountRequest.TypedSpec().Detached,
+			securityInitialized: true,
+			mountPointCreated:   mountPointCreated,
+			unmounter:           manager.Unmount,
 		}
 
 		ctrl.activeMounts[mountRequest.Metadata().ID()] = mountCtx
@@ -582,38 +606,14 @@ func applyMountAttributeChanges(
 		mountCtx.disableAccessTime = mountRequest.TypedSpec().DisableAccessTime
 	}
 
-	if mountCtx.secure != mountRequest.TypedSpec().Secure {
-		err := mountCtx.point.SetSecure(mountRequest.TypedSpec().Secure)
-		if err != nil {
-			return fmt.Errorf("failed to update secure for %q: %w", mountRequest.Metadata().ID(), err)
-		}
-
-		logger.Info(
-			"volume mount attributes updated",
-			zap.String("volume", volumeStatus.Metadata().ID()),
-			zap.String("secure", fmt.Sprintf("%v -> %v", mountCtx.secure, mountRequest.TypedSpec().Secure)),
-		)
-
-		mountCtx.secure = mountRequest.TypedSpec().Secure
-	}
-
-	//nolint:dupl
-	if mountCtx.noExec != mountRequest.TypedSpec().NoExec {
-		err := mountCtx.point.SetNoExec(mountRequest.TypedSpec().NoExec)
-		if err != nil {
-			return fmt.Errorf("failed to update noexec for %q: %w", mountRequest.Metadata().ID(), err)
-		}
-
-		logger.Info(
-			"volume mount attributes updated",
-			zap.String("volume", volumeStatus.Metadata().ID()),
-			zap.String("no_exec", fmt.Sprintf("%v -> %v", mountCtx.noExec, mountRequest.TypedSpec().NoExec)),
-		)
-
-		mountCtx.noExec = mountRequest.TypedSpec().NoExec
-	}
-
-	return nil
+	return updateMountSecurity(
+		logger,
+		mountRequest.Metadata().ID(),
+		volumeStatus.Metadata().ID(),
+		mountCtx,
+		mountRequest.TypedSpec().Secure,
+		mountRequest.TypedSpec().NoExec,
+	)
 }
 
 func buildFSOpenOptions(logger *zap.Logger, parameters []block.ParameterSpec, base []fsopen.Option) []fsopen.Option {
