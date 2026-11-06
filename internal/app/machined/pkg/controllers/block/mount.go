@@ -48,6 +48,9 @@ type mountContext struct {
 	mountPointCreated   bool
 	unmounter           func() error
 
+	// volumeType is the type of the volume the mount was made for.
+	volumeType block.VolumeType
+
 	// volumeSize is the size of the volume the filesystem was last grown for.
 	volumeSize uint64
 }
@@ -244,8 +247,16 @@ func (ctrl *MountController) Run(ctx context.Context, r controller.Runtime, logg
 					rootPath = mountParentStatus.TypedSpec().Target
 				}
 
+				if err = ctrl.unmountOnVolumeTypeChange(logger, mountRequest, volumeStatus); err != nil {
+					return err
+				}
+
 				if err = ctrl.handleMountOperation(ctx, logger, rootPath, mountSource, mountTarget, mountFilesystem, mountRequest, volumeStatus); err != nil {
 					return err
+				}
+
+				if mountCtx, ok := ctrl.activeMounts[mountRequest.Metadata().ID()]; ok {
+					mountCtx.volumeType = volumeStatus.TypedSpec().Type
 				}
 
 				if mountStatusMissing && volumeStatus.Metadata().ID() == constants.UserVolumeMountPoint {
@@ -314,6 +325,44 @@ func (ctrl *MountController) tearDownMountStatus(ctx context.Context, r controll
 	}
 
 	return true, nil
+}
+
+// unmountOnVolumeTypeChange unmounts the volume if it is mounted, but was mounted for a volume of a different type.
+//
+// The volume manager allows a volume to change its type (e.g. STATE becoming tmpfs once the machine configuration
+// is known), but the mount operations treat an existing mount as the mount of the volume: without unmounting,
+// the volume would be reported as being of the new type while still backed by the old one.
+func (ctrl *MountController) unmountOnVolumeTypeChange(
+	logger *zap.Logger,
+	mountRequest *block.MountRequest,
+	volumeStatus *block.VolumeStatus,
+) error {
+	mountCtx, ok := ctrl.activeMounts[mountRequest.Metadata().ID()]
+	if !ok || mountCtx.volumeType == volumeStatus.TypedSpec().Type {
+		return nil
+	}
+
+	logger.Info(
+		"volume type changed, unmounting",
+		zap.String("volume", volumeStatus.Metadata().ID()),
+		zap.Stringer("from", mountCtx.volumeType),
+		zap.Stringer("to", volumeStatus.TypedSpec().Type),
+	)
+
+	// some volume types (e.g. symlinks) don't have anything to unmount
+	if mountCtx.unmounter != nil {
+		if err := mountCtx.unmounter(); err != nil {
+			return fmt.Errorf("failed to unmount %q after the volume type change: %w", mountRequest.Metadata().ID(), err)
+		}
+
+		if mountCtx.mountPointCreated {
+			mountops.RemoveMountPoint(logger, mountCtx.point.Target())
+		}
+	}
+
+	delete(ctrl.activeMounts, mountRequest.Metadata().ID())
+
+	return nil
 }
 
 func (ctrl *MountController) handleMountOperation(

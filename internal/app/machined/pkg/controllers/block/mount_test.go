@@ -428,3 +428,38 @@ func (suite *MountSuite) TestMemoryMountIsEmptyAfterRemount() {
 
 	suite.unmountVolume(mountRequest)
 }
+
+func (suite *MountSuite) TestVolumeTypeChangeUnmounts() {
+	suite.requireRoot()
+
+	target := filepath.Join(suite.T().TempDir(), "memory-target")
+
+	suite.createMemoryVolume("volume1", target, 4*1024*1024)
+
+	mountRequest := suite.createMountRequest("volume1", nil)
+
+	suite.Require().True(statfs(suite.T(), target).tmpfs)
+	suite.Require().NoError(os.WriteFile(filepath.Join(target, "file"), []byte("data"), 0o644))
+
+	// the volume is now a plain directory, e.g. as a result of the configuration being replaced:
+	// the tmpfs must not be left mounted at the target of a volume which is not backed by it anymore
+	ctest.UpdateWithConflicts(suite, block.NewVolumeStatus(block.NamespaceName, "volume1"), func(r *block.VolumeStatus) error {
+		r.TypedSpec().Type = block.VolumeTypeDirectory
+		r.TypedSpec().MountSpec.Parameters = nil
+
+		return nil
+	})
+
+	suite.AssertWithin(5*time.Second, 50*time.Millisecond, func() error {
+		if statfs(suite.T(), target).tmpfs {
+			return retry.ExpectedError(assert.AnError)
+		}
+
+		return nil
+	})
+
+	suite.Assert().DirExists(target)
+	suite.Assert().NoFileExists(filepath.Join(target, "file"))
+
+	suite.unmountVolume(mountRequest)
+}
