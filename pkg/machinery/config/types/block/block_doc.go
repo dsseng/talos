@@ -1027,6 +1027,7 @@ func (UserVolumeConfigV1Alpha1) Doc() *encoder.Doc {
 					"directory",
 					"disk",
 					"partition",
+					"tmpfs",
 				},
 			},
 			{
@@ -1079,6 +1080,8 @@ func (UserVolumeConfigV1Alpha1) Doc() *encoder.Doc {
 	doc.AddExample("", exampleUserVolumeConfigV1Alpha1Disk())
 
 	doc.AddExample("", exampleUserVolumeConfigV1Alpha1Partition())
+
+	doc.AddExample("", exampleUserVolumeConfigV1Alpha1Tmpfs())
 
 	return doc
 }

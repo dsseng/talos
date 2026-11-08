@@ -133,7 +133,22 @@ func UserVolumeTransformer(c configconfig.Config) ([]VolumeResource, error) {
 				WithConvertEncryptionConfiguration(userVolumeConfig.Encryption()).
 				WriterFunc()
 
-		case block.VolumeTypeTmpfs, block.VolumeTypeSymlink, block.VolumeTypeOverlay, block.VolumeTypeExternal:
+		case block.VolumeTypeTmpfs:
+			// a volume backed by memory is empty each time it is mounted: there is nothing to locate or provision
+			userVolumeResource.TransformFunc = NewBuilder().
+				WithType(block.VolumeTypeTmpfs).
+				WithMount(block.MountSpec{
+					TargetPath:   userVolumeConfig.Name(),
+					ParentID:     constants.UserVolumeMountPoint,
+					SelinuxLabel: constants.EphemeralSelinuxLabel,
+					FileMode:     0o755,
+					UID:          0,
+					GID:          0,
+					Parameters:   tmpfsSizeParameters(userVolumeConfig.Provisioning().MaxSize().ValueOr(0)),
+				}).
+				WriterFunc()
+
+		case block.VolumeTypeSymlink, block.VolumeTypeOverlay, block.VolumeTypeExternal:
 			fallthrough
 
 		default:

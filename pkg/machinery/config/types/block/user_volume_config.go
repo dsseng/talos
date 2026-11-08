@@ -63,6 +63,7 @@ type VolumeType = block.VolumeType
 //	  - value: exampleUserVolumeConfigV1Alpha1Directory()
 //	  - value: exampleUserVolumeConfigV1Alpha1Disk()
 //	  - value: exampleUserVolumeConfigV1Alpha1Partition()
+//	  - value: exampleUserVolumeConfigV1Alpha1Tmpfs()
 //	alias: UserVolumeConfig
 //	schemaRoot: true
 //	schemaMeta: v1alpha1/UserVolumeConfig
@@ -81,6 +82,7 @@ type UserVolumeConfigV1Alpha1 struct {
 	//     - directory
 	//     - disk
 	//     - partition
+	//     - tmpfs
 	VolumeType *VolumeType `yaml:"volumeType,omitempty"`
 	//   description: |
 	//     The provisioning describes how the volume is provisioned.
@@ -125,6 +127,17 @@ func NewUserVolumeConfigV1Alpha1() *UserVolumeConfigV1Alpha1 {
 }
 
 const userVolumeName = "local-data"
+
+func exampleUserVolumeConfigV1Alpha1Tmpfs() *UserVolumeConfigV1Alpha1 {
+	cfg := NewUserVolumeConfigV1Alpha1()
+	cfg.MetaName = "scratch"
+	cfg.VolumeType = new(block.VolumeTypeTmpfs)
+	cfg.ProvisioningSpec = ProvisioningSpec{
+		ProvisioningMaxSize: MustSize("256MiB"),
+	}
+
+	return cfg
+}
 
 func exampleUserVolumeConfigV1Alpha1Partition() *UserVolumeConfigV1Alpha1 {
 	cfg := NewUserVolumeConfigV1Alpha1()
@@ -302,7 +315,27 @@ func (s *UserVolumeConfigV1Alpha1) Validate(validation.RuntimeMode, ...validatio
 		warnings = append(warnings, extraWarnings...)
 		validationErrors = errors.Join(validationErrors, extraErrors)
 
-	case block.VolumeTypeTmpfs, block.VolumeTypeSymlink, block.VolumeTypeOverlay, block.VolumeTypeExternal:
+	case block.VolumeTypeTmpfs:
+		// there is no minimum size: the volume is empty when mounted, and uses memory as it is filled
+		validationErrors = errors.Join(validationErrors, validateTmpfsProvisioning(s.ProvisioningSpec, vtype, 0))
+
+		if !s.EncryptionSpec.IsZero() {
+			validationErrors = errors.Join(validationErrors, errors.New("encryption spec is invalid for volumeType tmpfs"))
+		}
+
+		if !s.FilesystemSpec.IsZero() {
+			validationErrors = errors.Join(validationErrors, errors.New("filesystem spec is invalid for volumeType tmpfs"))
+		}
+
+		if s.TrimSpec != nil {
+			validationErrors = errors.Join(validationErrors, errors.New("trim spec is invalid for volumeType tmpfs"))
+		}
+
+		if s.ScrubSpec != nil {
+			validationErrors = errors.Join(validationErrors, errors.New("scrub spec is invalid for volumeType tmpfs"))
+		}
+
+	case block.VolumeTypeSymlink, block.VolumeTypeOverlay, block.VolumeTypeExternal:
 		fallthrough
 
 	default:

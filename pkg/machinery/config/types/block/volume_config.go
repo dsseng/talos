@@ -362,35 +362,43 @@ func (s *VolumeConfigV1Alpha1) validateTmpfsVolume(vtype block.VolumeType) error
 		// nothing to validate: the size of the STATE tmpfs is fixed, and provisioning is rejected by validateVolumeConstraints
 
 	case constants.EphemeralPartitionLabel:
-		if !s.ProvisioningSpec.DiskSelectorSpec.Match.IsZero() {
-			validationErrors = errors.Join(validationErrors, fmt.Errorf("disk selector is not allowed for volumeType %q", vtype))
-		}
-
-		if s.ProvisioningSpec.ProvisioningGrow != nil {
-			validationErrors = errors.Join(validationErrors, fmt.Errorf("grow is not allowed for volumeType %q", vtype))
-		}
-
-		// tmpfs memory is allocated on demand and can't be reserved, so there is no minimum size,
-		// and the size of the volume is the limit it can grow to
-		if !s.ProvisioningSpec.ProvisioningMinSize.IsZero() {
-			validationErrors = errors.Join(validationErrors, fmt.Errorf("min size is not allowed for volumeType %q: memory is not reserved, use max size to limit the size of the volume", vtype))
-		}
-
-		q := quirks.New("")
-
-		switch maxSize := s.ProvisioningSpec.ProvisioningMaxSize; {
-		case maxSize.IsZero():
-			validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) is required for volumeType %q", vtype))
-		case maxSize.IsRelative() || maxSize.IsNegative():
-			validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) must be an absolute size for volumeType %q", vtype))
-		case maxSize.Value() < q.PartitionSizes().EphemeralMinSize():
-			validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) cannot be less than %d bytes for volumeType %q", q.PartitionSizes().EphemeralMinSize(), vtype))
-		}
+		validationErrors = errors.Join(validationErrors, validateTmpfsProvisioning(s.ProvisioningSpec, vtype, quirks.New("").PartitionSizes().EphemeralMinSize()))
 
 	case constants.BootPartitionLabel, constants.BIOSGrubPartitionLabel, constants.EFIPartitionLabel, constants.MetaPartitionLabel, constants.ImageCachePartitionLabel:
 		fallthrough
 	default:
 		validationErrors = errors.Join(validationErrors, fmt.Errorf("volumeType %q is not allowed for the %q volume", vtype, s.MetaName))
+	}
+
+	return validationErrors
+}
+
+// validateTmpfsProvisioning validates the provisioning of a memory (tmpfs) volume.
+//
+// Memory is allocated on demand and can't be reserved, so the only thing which can be provisioned
+// is the limit the volume can grow to: it is required, and the minimum size of the volume is the lowest limit allowed.
+func validateTmpfsProvisioning(p ProvisioningSpec, vtype block.VolumeType, minimumSize uint64) error {
+	var validationErrors error
+
+	if !p.DiskSelectorSpec.Match.IsZero() {
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("disk selector is not allowed for volumeType %q", vtype))
+	}
+
+	if p.ProvisioningGrow != nil {
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("grow is not allowed for volumeType %q", vtype))
+	}
+
+	if !p.ProvisioningMinSize.IsZero() {
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("min size is not allowed for volumeType %q: memory is not reserved, use max size to limit the size of the volume", vtype))
+	}
+
+	switch maxSize := p.ProvisioningMaxSize; {
+	case maxSize.IsZero():
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) is required for volumeType %q", vtype))
+	case maxSize.IsRelative() || maxSize.IsNegative():
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) must be an absolute size for volumeType %q", vtype))
+	case maxSize.Value() < minimumSize:
+		validationErrors = errors.Join(validationErrors, fmt.Errorf("size (provisioning.maxSize) cannot be less than %d bytes for volumeType %q", minimumSize, vtype))
 	}
 
 	return validationErrors

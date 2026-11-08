@@ -5,6 +5,8 @@
 package volumeconfig
 
 import (
+	"strconv"
+
 	machinedruntime "github.com/siderolabs/talos/internal/app/machined/pkg/runtime"
 	configconfig "github.com/siderolabs/talos/pkg/machinery/config/config"
 	"github.com/siderolabs/talos/pkg/machinery/imager/quirks"
@@ -46,4 +48,15 @@ func minAllocationGroupSize(filesystem configconfig.SystemVolumeFilesystemConfig
 // MetaProvider wraps acquiring meta.
 type MetaProvider interface {
 	Meta() machinedruntime.Meta
+}
+
+// tmpfsSizeParameters returns the mount parameters which limit the size of a memory (tmpfs) volume.
+func tmpfsSizeParameters(size uint64) []block.ParameterSpec {
+	return []block.ParameterSpec{
+		{
+			Type:   block.FSParameterTypeStringValue,
+			Name:   "size",
+			String: new(strconv.FormatUint(size, 10)),
+		},
+	}
 }

@@ -6,6 +6,7 @@ package volumeconfig_test
 
 import (
 	"io/fs"
+	"strconv"
 	"testing"
 
 	"github.com/siderolabs/gen/xslices"
@@ -79,6 +80,51 @@ func TestUserVolumeTransformer(t *testing.T) {
 			},
 		},
 		{
+			name: "memory volume",
+			cfg: []*blockcfg.UserVolumeConfigV1Alpha1{{
+				MetaKind:       blockcfg.UserVolumeConfigKind,
+				MetaAPIVersion: "v1alpha1",
+				MetaName:       "scratch",
+				VolumeType:     new(block.VolumeTypeTmpfs),
+				ProvisioningSpec: blockcfg.ProvisioningSpec{
+					ProvisioningMaxSize: blockcfg.MustSize("64MiB"),
+				},
+			}},
+			checkFunc: func(t *testing.T, resources []volumeconfig.VolumeResource, err error) {
+				require.NoError(t, err)
+				require.Len(t, resources, 1)
+
+				assert.Equal(t, constants.UserVolumePrefix+"scratch", resources[0].VolumeID)
+				assert.Equal(t, block.UserVolumeLabel, resources[0].Label)
+
+				testTransformFunc(t, resources[0].TransformFunc, func(t *testing.T, vc *block.VolumeConfig, err error) {
+					require.NoError(t, err)
+
+					assert.Equal(t, block.VolumeTypeTmpfs, vc.TypedSpec().Type)
+
+					// nothing to locate or provision for a volume backed by memory
+					require.Empty(t, vc.TypedSpec().Provisioning)
+					assert.True(t, vc.TypedSpec().Locator.Match.IsZero())
+
+					assert.Equal(t, "scratch", vc.TypedSpec().Mount.TargetPath)
+					assert.Equal(t, constants.UserVolumeMountPoint, vc.TypedSpec().Mount.ParentID)
+					assert.Equal(t, fs.FileMode(0o755), vc.TypedSpec().Mount.FileMode)
+					assert.Nil(t, vc.TypedSpec().Mount.BindTarget)
+
+					require.Len(t, vc.TypedSpec().Mount.Parameters, 1)
+					assert.Equal(t, "size", vc.TypedSpec().Mount.Parameters[0].Name)
+					assert.Equal(t, new(strconv.Itoa(64*1024*1024)), vc.TypedSpec().Mount.Parameters[0].String)
+				})
+
+				// memory volumes are as locked down as any other user volume by default
+				testMountTransformFunc(t, resources[0].MountTransformFunc, func(t *testing.T, m *block.VolumeMountRequest, err error) {
+					require.NoError(t, err)
+					assert.True(t, m.TypedSpec().Secure)
+					assert.True(t, m.TypedSpec().NoExec)
+				})
+			},
+		},
+		{
 			name: "directory volume",
 			cfg: []*blockcfg.UserVolumeConfigV1Alpha1{{
 				MetaKind:       blockcfg.UserVolumeConfigKind,
@@ -121,11 +167,11 @@ func TestUserVolumeTransformer(t *testing.T) {
 			cfg: []*blockcfg.UserVolumeConfigV1Alpha1{{
 				MetaKind:       blockcfg.UserVolumeConfigKind,
 				MetaAPIVersion: "v1alpha1",
-				VolumeType:     new(block.VolumeTypeTmpfs),
+				VolumeType:     new(block.VolumeTypeSymlink),
 			}},
 			checkFunc: func(t *testing.T, resources []volumeconfig.VolumeResource, err error) {
 				require.Error(t, err)
-				assert.Equal(t, "unsupported volume type \"tmpfs\"", err.Error())
+				assert.Equal(t, "unsupported volume type \"symlink\"", err.Error())
 
 				require.Empty(t, resources)
 			},

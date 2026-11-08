@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/siderolabs/talos/internal/app/machined/pkg/controllers/block/internal/volumes"
 	"github.com/siderolabs/talos/internal/pkg/celmatch"
@@ -122,16 +121,9 @@ func GetEphemeralVolumeTransformer(inContainer bool) volumeConfigTransformer {
 							FileMode:     0o755,
 							UID:          0,
 							GID:          0,
-							Parameters: []block.ParameterSpec{
-								{
-									Type: block.FSParameterTypeStringValue,
-									Name: "size",
-									String: new(strconv.FormatUint(
-										extraVolumeConfig.Provisioning().MaxSize().ValueOr(q.PartitionSizes().EphemeralMinSize()),
-										10,
-									)),
-								},
-							},
+							Parameters: tmpfsSizeParameters(
+								extraVolumeConfig.Provisioning().MaxSize().ValueOr(q.PartitionSizes().EphemeralMinSize()),
+							),
 						}).
 						Apply(vc.TypedSpec())
 				}
@@ -285,13 +277,7 @@ func manageStateConfigPresent(cfg configconfig.Config) func(vc *block.VolumeConf
 					GID:          0,
 					Secure:       true,
 					NoExec:       true,
-					Parameters: []block.ParameterSpec{
-						{
-							Type:   block.FSParameterTypeStringValue,
-							Name:   "size",
-							String: new(strconv.FormatUint(quirks.New("").PartitionSizes().StateSize(), 10)),
-						},
-					},
+					Parameters:   tmpfsSizeParameters(quirks.New("").PartitionSizes().StateSize()),
 				}).
 				Apply(vc.TypedSpec())
 		}

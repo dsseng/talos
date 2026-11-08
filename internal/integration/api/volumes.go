@@ -1292,6 +1292,105 @@ func (suite *VolumesSuite) TestUserVolumesDirectory() {
 	}
 }
 
+// TestUserVolumesMemory creates user volumes backed by memory, and checks that they are mounted as tmpfs with the requested size limit,
+// and that they are empty when they are re-created.
+func (suite *VolumesSuite) TestUserVolumesMemory() {
+	if testing.Short() {
+		suite.T().Skip("skipping test in short mode.")
+	}
+
+	if suite.Cluster == nil || suite.Cluster.Provisioner() != base.ProvisionerQEMU {
+		suite.T().Skip("skipping test for non-qemu provisioner")
+	}
+
+	node := suite.RandomDiscoveredNodeInternalIP(machine.TypeWorker)
+
+	ctx := client.WithNode(suite.ctx, node)
+
+	volumeID := fmt.Sprintf("%04x", rand.Int31()) + "-memory"
+	userVolumeID := constants.UserVolumePrefix + volumeID
+
+	const size = 16 * 1024 * 1024
+
+	doc := blockcfg.NewUserVolumeConfigV1Alpha1()
+	doc.MetaName = volumeID
+	doc.VolumeType = new(block.VolumeTypeTmpfs)
+	doc.ProvisioningSpec.ProvisioningMaxSize = blockcfg.MustSize("16MiB")
+
+	// tmpfs is mounted at the same path as any other user volume
+	mountPoint := filepath.Join(constants.UserVolumeMountPoint, volumeID)
+
+	assertTmpfsMounted := func() {
+		rtestutils.AssertResources(
+			ctx, suite.T(), suite.Client.State(), []string{userVolumeID},
+			func(vs *block.VolumeStatus, asrt *assert.Assertions) {
+				asrt.Equal(block.VolumePhaseReady, vs.TypedSpec().Phase)
+				asrt.Equal(block.VolumeTypeTmpfs, vs.TypedSpec().Type)
+				asrt.EqualValues(size, vs.TypedSpec().Size)
+			},
+		)
+
+		rtestutils.AssertResources(ctx, suite.T(), suite.Client.State(), []string{userVolumeID},
+			func(*block.MountStatus, *assert.Assertions) {})
+
+		var fsType string
+
+		for line := range strings.Lines(suite.ReadFile(ctx, "/proc/self/mountinfo")) {
+			// 36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root rw,errors=continue
+			fields := strings.Fields(line)
+
+			if len(fields) < 10 || fields[4] != mountPoint {
+				continue
+			}
+
+			if idx := slices.Index(fields, "-"); idx != -1 && idx+1 < len(fields) {
+				fsType = fields[idx+1]
+			}
+		}
+
+		suite.Assert().Equal("tmpfs", fsType, "%s should be a tmpfs mount", mountPoint)
+	}
+
+	listMountPoint := func() []string {
+		var names []string
+
+		stream, err := suite.Client.LS(ctx, &machineapi.ListRequest{Root: mountPoint})
+		suite.Require().NoError(err)
+
+		suite.Require().NoError(helpers.ReadGRPCStream(stream, func(info *machineapi.FileInfo, _ string, _ bool) error {
+			suite.Require().Empty(info.Error)
+
+			if info.Name != mountPoint {
+				names = append(names, info.Name)
+			}
+
+			return nil
+		}))
+
+		return names
+	}
+
+	suite.PatchMachineConfig(ctx, doc)
+
+	assertTmpfsMounted()
+	suite.Assert().Empty(listMountPoint())
+
+	// remove the volume, and re-create it: the volume has no backing store, it should be empty again
+	suite.RemoveMachineConfigDocumentsByName(ctx, blockcfg.UserVolumeConfigKind, volumeID)
+
+	rtestutils.AssertNoResource[*block.VolumeStatus](ctx, suite.T(), suite.Client.State(), userVolumeID)
+
+	suite.PatchMachineConfig(ctx, doc)
+
+	assertTmpfsMounted()
+	suite.Assert().Empty(listMountPoint())
+
+	// clean up
+	suite.RemoveMachineConfigDocumentsByName(ctx, blockcfg.UserVolumeConfigKind, volumeID)
+
+	rtestutils.AssertNoResource[*block.VolumeStatus](ctx, suite.T(), suite.Client.State(), userVolumeID)
+}
+
 // TestRawVolumes performs a series of operations on raw volumes: creating, destroying, etc.
 func (suite *VolumesSuite) TestRawVolumes() {
 	if testing.Short() {

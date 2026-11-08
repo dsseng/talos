@@ -103,6 +103,18 @@ func TestUserVolumeConfigMarshalUnmarshal(t *testing.T) {
 				return c
 			},
 		},
+		{
+			name:     "tmpfs",
+			filename: "uservolumeconfig_tmpfs.yaml",
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("256MiB")
+
+				return c
+			},
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
@@ -434,12 +446,119 @@ func TestUserVolumeConfigValidate(t *testing.T) {
 			expectedErrors: "mount.disableAccessTime is invalid for volumeType directory",
 		},
 		{
+			name: "tmpfs requires size",
+
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+
+				return c
+			},
+
+			expectedErrors: "size (provisioning.maxSize) is required for volumeType \"tmpfs\"",
+		},
+		{
+			name: "tmpfs size is absolute",
+
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("10%")
+
+				return c
+			},
+
+			expectedErrors: "size (provisioning.maxSize) must be an absolute size for volumeType \"tmpfs\"",
+		},
+		{
+			name: "tmpfs can't be reserved",
+
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.ProvisioningSpec.ProvisioningMinSize = block.MustByteSize("10MiB")
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("100MiB")
+
+				return c
+			},
+
+			expectedErrors: "min size is not allowed for volumeType \"tmpfs\": memory is not reserved, use max size to limit the size of the volume",
+		},
+		{
+			name: "tmpfs has no disk",
+
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("100MiB")
+				c.ProvisioningSpec.ProvisioningGrow = new(true)
+
+				require.NoError(t, c.ProvisioningSpec.DiskSelectorSpec.Match.UnmarshalText([]byte(`system_disk`)))
+
+				return c
+			},
+
+			expectedErrors: "disk selector is not allowed for volumeType \"tmpfs\"\ngrow is not allowed for volumeType \"tmpfs\"",
+		},
+		{
+			name: "encryption spec for tmpfs",
+
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("100MiB")
+
+				c.EncryptionSpec.EncryptionProvider = blockres.EncryptionProviderLUKS2
+				c.EncryptionSpec.EncryptionKeys = []block.EncryptionKey{{KeySlot: 0, KeyTPM: &block.EncryptionKeyTPM{}}}
+
+				return c
+			},
+
+			expectedErrors: "encryption spec is invalid for volumeType tmpfs",
+		},
+		{
+			name: "filesystem spec for tmpfs",
+
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("100MiB")
+				c.FilesystemSpec.FilesystemType = blockres.FilesystemTypeXFS
+
+				return c
+			},
+
+			expectedErrors: "filesystem spec is invalid for volumeType tmpfs",
+		},
+		{
+			name: "trim and scrub for tmpfs",
+
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("100MiB")
+				c.TrimSpec = &block.TrimConfig{}
+				c.ScrubSpec = &block.ScrubConfig{}
+
+				return c
+			},
+
+			expectedErrors: "trim spec is invalid for volumeType tmpfs\nscrub spec is invalid for volumeType tmpfs",
+		},
+		{
 			name: "invalid volumeType",
 
 			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
 				c := block.NewUserVolumeConfigV1Alpha1()
 				c.MetaName = constants.EphemeralPartitionLabel
-				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.VolumeType = new(blockres.VolumeTypeSymlink)
 
 				require.NoError(t, c.ProvisioningSpec.DiskSelectorSpec.Match.UnmarshalText([]byte(`system_disk`)))
 				c.ProvisioningSpec.ProvisioningMinSize = block.MustByteSize("10GiB")
@@ -455,7 +574,7 @@ func TestUserVolumeConfigValidate(t *testing.T) {
 				return c
 			},
 
-			expectedErrors: "unsupported volume type \"tmpfs\"",
+			expectedErrors: "unsupported volume type \"symlink\"",
 		},
 		{
 			name: "valid",
@@ -495,6 +614,22 @@ func TestUserVolumeConfigValidate(t *testing.T) {
 				c := block.NewUserVolumeConfigV1Alpha1()
 				c.MetaName = constants.EphemeralPartitionLabel
 				c.VolumeType = new(blockres.VolumeTypeDirectory)
+
+				return c
+			},
+		},
+		{
+			name: "valid tmpfs",
+
+			cfg: func(t *testing.T) *block.UserVolumeConfigV1Alpha1 {
+				c := block.NewUserVolumeConfigV1Alpha1()
+				c.MetaName = "scratch"
+				c.VolumeType = new(blockres.VolumeTypeTmpfs)
+				c.ProvisioningSpec.ProvisioningMaxSize = block.MustSize("64KiB")
+
+				// the mount options which apply to a tmpfs are accepted
+				c.MountSpec.MountSecure = new(false)
+				c.MountSpec.MountDisableAccessTime = new(true)
 
 				return c
 			},

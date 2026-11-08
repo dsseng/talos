@@ -989,7 +989,8 @@
           "enum": [
             "directory",
             "disk",
-            "partition"
+            "partition",
+            "tmpfs"
           ],
           "title": "volumeType",
           "description": "Volume type.\n",
